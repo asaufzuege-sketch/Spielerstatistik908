@@ -1,0 +1,143 @@
+:root {
+  --bg-color: #ffffff;
+  --text-color: #000000;
+  --header-bg: #1E1E1E;
+  --row-even: #f0f0f0;
+  --row-odd: #e0e0e0;
+  --cell-pos-color: #00c06f;
+  --cell-neg-color: #ff4c4c;
+  --cell-zero-color: #000000;
+  --btn-top-bg: #c8fbc8;
+  --btn-bottom-bg: #ffe7e7;
+  --timer-active-color: #005c2f;
+  --timer-left-bg: #3b3b3b;
+  --sticky-header-height: 56px;
+  --ice-top: #00c06f;
+  --ice-bottom: #ff4c4c;
+}
+[data-theme="dark"] {
+  --bg-color: #111111;
+  --text-color: #ffffff;
+  --header-bg: #1E1E1E;
+  --row-even: #333333;
+  --row-odd: #4a4a4a;
+  --cell-pos-color: #00ff80;
+  --cell-neg-color: #ff4c4c;
+  --cell-zero-color: #ffffff;
+  --timer-left-bg: #3b3b3b;
+}
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 20px;
+}
+.page {
+  width: 100%;
+  max-width: 1100px;
+}
+/* page header container (placed above table/map) */
+.page-header {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* map-shell wraps map header + map row so header equals width of the combined map columns */
+.map-shell {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* table-shell wraps table + header so header = table width */
+.table-shell {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* sticky-header styling reused */
+.sticky-header {
+  background: var(--header-bg);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* unchanged top-bar and button styles */
+.top-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  padding: 8px 0;
+}
+.top-btn {
+  background: #2b2b2b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 400;
+  box-sizing: border-box;
+}
+.top-btn.export-csv { background: #46798e; color: #fff; }
+.top-btn.export-season { background: #e3fba7; color: #000; }
+.top-btn.season-highlight { background: #44bb91; color: #fff; }
+.import-csv-btn { background: #010741; color: #fff; }
+.reset-btn { font-weight: 700; }
+.timer { font-size: 1.1rem; padding: 10px 16px; height: 40px; display:inline-flex; align-items:center; justify-content:center; }
+.timer-left { background: var(--timer-left-bg); }
+
+/* stats table container */
+#statsScrollContainer { max-height: none; overflow-y: visible; }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+thead th { background: var(--header-bg); position: sticky; top: 0; z-index: 40; padding: 8px 6px; border-bottom: 2px solid #333; text-align: center; }
+thead th:nth-child(2) { text-align: left; padding-left: 12px; }
+th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #333; color: var(--text-color); }
+.even-row { background-color: var(--row-even); }
+.odd-row { background-color: var(--row-odd); }
+.marker-dot { position: absolute; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 6px rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.15); cursor:pointer; }
+
+/* map layout */
+.torbild-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 20px;
+  height: calc(100vh - 120px);
+  margin-top: 20px;
+}
+.field-column { flex: 1; display:flex; justify-content:center; }
+.goal-column { flex: 1; display:flex; flex-direction:column; gap:15px; }
+
+/* time tracking box */
+.time-tracking-box { display:flex; flex-direction:column; justify-content:flex-end; background:#1a1a1a; border:2px solid #333; border-radius:10px; padding:10px 14px; color:#fff; font-size:0.95rem; height:100%; gap:10px; }
+.period { display:grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: auto minmax(1.4em, auto) auto; align-items:center; justify-items:center; row-gap:2px; column-gap:12px; padding:6px 10px; background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.3); border-radius:8px; }
+.time-btn { width:100%; height:20px; border:none; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer; transition: transform 0.1s, background 0.2s; }
+.period-buttons.top-row .time-btn { background: var(--btn-top-bg); }
+.period-buttons.bottom-row .time-btn { background: var(--btn-bottom-bg); }
+
+/* season page */
+#seasonPage table { width: auto; table-layout: auto; border-collapse: collapse; font-size: 0.95rem; margin: 0 auto; }
+#seasonPage .total-row td { background: var(--header-bg) !important; color: var(--text-color) !important; font-weight:700 !important; border-top:2px solid #333; }
+
+/* responsive */
+@media (max-width: 900px) {
+  .torbild-layout { flex-direction: column; height: auto; }
+  .top-bar { gap: 6px; }
+}
