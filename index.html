@@ -8,24 +8,7 @@
 </head>
 <body>
 
-  <!-- GLOBAL HEADER (used by JS; will be aligned per-page) -->
-  <div class="page-header" id="globalPageHeader">
-    <div class="sticky-header" id="stickyHeader">
-      <div class="top-bar">
-        <button id="timerBtn" class="top-btn timer timer-left reset" aria-label="Spieluhr">00:00</button>
-        <button id="selectPlayersBtn" class="top-btn">Spieler wählen</button>
-        <button id="torbildBtn" class="top-btn">Goal Map</button>
-        <button id="goalValueBtn" class="top-btn">Goal Value</button>
-        <button id="exportSeasonFromStatsBtn" class="top-btn export-season">Export Season</button>
-        <button id="seasonBtn" class="top-btn season-highlight">Season</button>
-        <button id="seasonMapBtn" class="top-btn season-highlight">Season Map</button>
-        <button id="exportBtn" class="top-btn export-csv">Export CSV</button>
-        <button id="resetBtn" class="top-btn danger-btn reset-btn">Reset</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SPIELERAUSWAHL (kein eigener Header hier) -->
+  <!-- SPIELERAUSWAHL -->
   <div id="playerSelectionPage" class="page">
     <h1>Spielerauswahl</h1>
     <p class="center-text">Wähle die Spieler, die in der Tabelle angezeigt werden sollen</p>
@@ -35,6 +18,23 @@
 
   <!-- STATS SEITE -->
   <div id="statsPage" class="page" style="display:none;">
+    <!-- Header sits directly inside the page container, so it naturally spans the table width -->
+    <div class="page-header">
+      <div class="sticky-header" id="stickyHeader">
+        <div class="top-bar">
+          <button id="timerBtn" class="top-btn timer timer-left reset" aria-label="Spieluhr">00:00</button>
+          <button id="selectPlayersBtn" class="top-btn">Spieler wählen</button>
+          <button id="torbildBtn" class="top-btn">Goal Map</button>
+          <button id="goalValueBtn" class="top-btn">Goal Value</button>
+          <button id="exportSeasonFromStatsBtn" class="top-btn export-season">Export Season</button>
+          <button id="seasonBtn" class="top-btn season-highlight">Season</button>
+          <button id="seasonMapBtn" class="top-btn season-highlight">Season Map</button>
+          <button id="exportBtn" class="top-btn export-csv">Export CSV</button>
+          <button id="resetBtn" class="top-btn danger-btn reset-btn">Reset</button>
+        </div>
+      </div>
+    </div>
+
     <div id="statsScrollContainer">
       <div id="statsContainer"></div>
     </div>
@@ -42,6 +42,20 @@
 
   <!-- GOAL MAP / TORBILD SEITE -->
   <div id="torbildPage" class="page" style="display:none;">
+    <!-- Wrap header + map in a map-shell so header width = map-row width -->
+    <div class="map-shell">
+      <div class="torbild-header page-header" style="display:flex;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="backToStatsBtn" class="top-btn back-btn">← Zurück</button>
+          <button id="exportSeasonMapBtn" class="top-btn export-season">Export Season Map</button>
+        </div>
+        <div style="flex:1"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="resetTorbildBtn" class="top-btn danger-btn reset-btn">Reset</button>
+        </div>
+      </div>
+    </div>
+
     <div class="torbild-layout">
       <div class="field-column">
         <div class="img-box field-box" id="fieldBox">
@@ -131,9 +145,17 @@
 
   <!-- GOAL VALUE PAGE -->
   <div id="goalValuePage" class="page" style="display:none;">
-    <!-- Use .table-shell so header alignment spans the full table width.
-         app.js will align the global #stickyHeader from the table left to the Value (last) column. -->
-    <div class="table-shell" style="margin-top:18px; padding:10px;">
+    <div class="torbild-header" style="display:flex;align-items:center;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="backFromGoalValueBtn" class="top-btn back-btn">← Zurück</button>
+      </div>
+      <div style="flex:1"></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="resetGoalValueBtn" class="top-btn danger-btn reset-btn">Reset</button>
+      </div>
+    </div>
+
+    <div style="margin-top:18px; padding:10px;">
       <h1>Goal Value</h1>
       <div id="goalValueContainer"></div>
     </div>
@@ -141,6 +163,16 @@
 
   <!-- SEASON MAP PAGE -->
   <div id="seasonMapPage" class="page" style="display:none;">
+    <div class="torbild-header" style="display:flex;align-items:center;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="backToStatsFromSeasonMapBtn" class="top-btn back-btn">← Zurück</button>
+      </div>
+      <div style="flex:1"></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="resetSeasonMapBtn" class="top-btn danger-btn reset-btn">Reset</button>
+      </div>
+    </div>
+
     <div style="margin-top:18px; padding:10px;">
       <h1>Season Map</h1>
     </div>
@@ -234,10 +266,17 @@
 
   <!-- SEASON SEITE -->
   <div id="seasonPage" class="page" style="display:none;">
-    <h1>Season</h1>
-    <div class="table-shell" style="margin-top:12px;">
-      <div id="seasonContainer"></div>
+    <div class="sticky-header season-header">
+      <div class="top-bar" style="width:100%; display:flex; align-items:center; gap:8px;">
+        <button id="backToStatsFromSeasonBtn" class="top-btn">← Zurück</button>
+        <button id="exportSeasonBtn" class="top-btn export-csv">Export CSV</button>
+        <div style="flex:1"></div>
+        <button id="resetSeasonBtn" class="top-btn danger-btn reset-btn">Reset</button>
+      </div>
     </div>
+
+    <h1>Season</h1>
+    <div id="seasonContainer"></div>
   </div>
 
   <script src="app.js"></script>
