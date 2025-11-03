@@ -1,40 +1,45 @@
 :root {
+  /* Grundfarben Light Mode */
   --bg-color: #ffffff;
   --text-color: #000000;
-  --header-bg: #1E1E1E;
-  --row-even: #f6f8fa;
-  --row-odd: #ffffff;
-  --cell-pos-color: #00ff80; /* kräftigeres Grün (sichtbar) */
+  --header-bg: #1E1E1E; /* geändert: Titel-/Totalzeilenfarbe */
+  --row-even: #f0f0f0;
+  --row-odd: #e0e0e0;
+
+  /* Tabellenfarben */
+  --cell-pos-color: #00c06f;
   --cell-neg-color: #ff4c4c;
-  --cell-zero-color: #cccccc;
+  --cell-zero-color: #000000;
+
+  /* Buttons / Timer */
   --btn-top-bg: #c8fbc8;
   --btn-bottom-bg: #ffe7e7;
   --timer-active-color: #005c2f;
   --timer-left-bg: #3b3b3b;
+
+  /* Layout */
   --sticky-header-height: 56px;
-  --ice-top: #00ff80;
+
+  /* Torbildfarben */
+  --ice-top: #00c06f;
   --ice-bottom: #ff4c4c;
-  --muted: #9aa0a6;
 }
+/* Dark Mode */
 [data-theme="dark"] {
   --bg-color: #111111;
   --text-color: #ffffff;
-  --header-bg: #0f1720;
-  --row-even: #1b1b1b;
-  --row-odd: #131313;
+  --header-bg: #1E1E1E; /* gleiche Header-Farbe im Dark-Mode */
+  --row-even: #333333;
+  --row-odd: #4a4a4a;
+
   --cell-pos-color: #00ff80;
   --cell-neg-color: #ff4c4c;
-  --cell-zero-color: #bbbbbb;
-  --timer-left-bg: #2b2b2b;
-  --muted: #9aa0a6;
+  --cell-zero-color: #ffffff;
+  --timer-left-bg: #3b3b3b;
 }
-
-/* Base layout */
-* { box-sizing: border-box; }
-html,body { height: 100%; }
 body {
   margin: 0;
-  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Segoe UI", sans-serif;
   background-color: var(--bg-color);
   color: var(--text-color);
   display: flex;
@@ -44,46 +49,134 @@ body {
   padding: 20px;
 }
 
-/* App width */
 .page {
   width: 100%;
   max-width: 1100px;
 }
 
-/* ---------- Header / Top bar ---------- */
-/* container above table/map */
-.page-header {
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 10px;
-  display: block;
+/* =========================================
+   TYPOGRAFIE
+   ========================================= */
+/* Standard h1 remains baseline; specific pages use Astroz via selectors below */
+h1 {
+  text-align: center;
+  color: var(--cell-pos-color); /* green title for SpielerAuswahl, Season, Goal Value, Season Map */
+  margin: 0 0 12px 0;
 }
 
-/* sticky header: sticks to viewport on scroll */
-.sticky-header {
+/* Apply Astroz font & 30% larger than the previous baseline */
+#goalValuePage h1,
+#seasonPage h1,
+#seasonMapPage h1,
+#playerSelectionPage h1 {
+  font-family: "Astroz", "Segoe UI", sans-serif;
+  font-size: 1.69em; /* larger relative to baseline */
+  font-weight: 700;
+  margin: 0 0 12px 0;
+}
+
+/* center text, small */
+.center-text {
+  text-align: center;
+  color: #888;
+  margin-top: 6px;
+}
+
+/* =========================================
+   SPIELERAUSWAHL
+   ========================================= */
+.player-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px auto;
+  max-width: 600px;
+}
+
+.player-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   background: var(--header-bg);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 6px 0;
+}
+
+.player-list li span {
+  color: #fff;
+}
+
+.player-list input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cell-pos-color);
+}
+
+.player-list .num {
+  width: 48px;
+  text-align: center;
+  font-weight: 700;
+  color: #fff;
+}
+
+.player-list input[type="text"] {
+  background: var(--row-even);
+  color: var(--text-color);
+  border: 1px solid #444;
   border-radius: 8px;
+  padding: 6px 8px;
+  flex: 1;
+}
+
+/* Confirm button - match top-button height and not bold (Reset is only bold button) */
+.confirm-btn {
+  display: block;
+  margin: 20px auto;
+  padding: 8px 14px;
+  background: var(--cell-pos-color);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 400; /* not bold */
+  height: 40px; /* same height as top-bar buttons */
+  line-height: 24px;
+  transition: background 0.2s;
+}
+
+.confirm-btn:hover {
+  background: #00e07f;
+}
+
+/* =========================================
+   STICKY HEADER / BUTTONS
+   ========================================= */
+.sticky-header {
+  position: relative;
+  z-index: 50;
+  background: var(--header-bg);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  margin-bottom: 10px;
   padding: 8px 12px;
   display: flex;
   justify-content: center;
   align-items: center;
-  position: sticky;
-  top: 20px; /* respects body padding */
-  z-index: 60;
-}
-
-/* top bar layout inside header */
-.top-bar {
   width: 100%;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-start; /* left aligned like before */
-  flex-wrap: wrap;
+  box-sizing: border-box;
 }
 
-/* generic top buttons */
+.top-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+/* Base top button styling - uniform height; not bold (except reset) */
 .top-btn {
   background: #2b2b2b;
   color: #fff;
@@ -92,138 +185,278 @@ body {
   padding: 8px 14px;
   cursor: pointer;
   font-size: 0.95rem;
-  height: 40px;
+  transition: background 0.2s;
+  height: 40px;               /* uniform height */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 400;           /* not bold */
   box-sizing: border-box;
 }
-.top-btn:active { transform: translateY(1px); }
-.top-btn.export-csv { background: #2f6f7e; color: #fff; }
-.top-btn.export-season { background: #dff7c9; color: #0a0a0a; }
-.top-btn.season-highlight { background: #2aa57a; color: #fff; }
-.top-btn.back-btn { background: transparent; color: var(--text-color); border: 1px solid rgba(255,255,255,0.06); }
-.import-csv-btn { background: #010741; color: #fff; }
-.reset-btn { font-weight: 700; background: #b22222; }
 
-/* timer button */
-.timer { font-size: 1.05rem; padding: 10px 16px; height: 40px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; }
-.timer-left { background: var(--timer-left-bg); color: #fff; }
+.top-btn:hover {
+  background: #3b3b3b;
+}
 
-/* ---------- Stats table / general table ---------- */
-#statsScrollContainer { max-height: none; overflow-y: visible; }
-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; background: transparent; }
+/* special lighter timer on the left */
+.top-btn.timer-left {
+  background: var(--timer-left-bg);
+}
+.top-btn.timer-left:hover {
+  background: #4e4e4e;
+}
+
+/* Export CSV button: UPDATED to #46798e */
+.top-btn.export-csv {
+  background: #46798e;
+  color: #fff;
+}
+.top-btn.export-csv:hover {
+  filter: brightness(0.95);
+}
+
+/* NEW: Season and Season Map highlight color #44bb91 */
+.top-btn.season-highlight {
+  background: #44bb91;
+  color: #fff;
+}
+.top-btn.season-highlight:hover {
+  filter: brightness(0.95);
+}
+
+/* NEW: Export Season and Export Season Map buttons color #e3fba7 (light) */
+.top-btn.export-season {
+  background: #e3fba7;
+  color: #000;
+}
+.top-btn.export-season:hover {
+  filter: brightness(0.95);
+}
+
+/* Import CSV button (created dynamically in JS) - now same base .top-btn and specialized color */
+.import-csv-btn {
+  background: #010741; /* import CSV requested color */
+  color: #fff;
+  /* sizing is inherited from .top-btn when element has both classes */
+}
+
+/* Danger / reset buttons - Reset remains bold */
+.danger-btn {
+  background: #8b0000;
+  color: #fff;
+}
+.danger-btn:hover {
+  background: #a30000;
+}
+
+/* Ensure reset buttons are bold (the only bold buttons) */
+.reset-btn {
+  font-weight: 700;
+}
+
+/* =========================================
+   TIMER BUTTON
+   ========================================= */
+.timer {
+  font-size: 1.1rem;
+  padding: 10px 16px;
+  transition: background-color 0.25s;
+  height: 40px; /* match other top buttons */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.timer.running {
+  background: var(--cell-pos-color);
+}
+.timer.stopped {
+  background: #b00020;
+}
+.timer.reset {
+  background: var(--timer-left-bg);
+}
+
+/* =========================================
+   STATISTIK-TABELLE
+   ========================================= */
+/* Remove scrolling bar for datenerfassung (stats) table container as requested */
+#statsScrollContainer {
+  max-height: none; /* removed fixed height */
+  overflow-y: visible; /* no scrollbar */
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+/* thead uses header variable to ensure consistent color */
 thead th {
   background: var(--header-bg);
   position: sticky;
-  top: calc(20px + 8px); /* slightly below sticky header */
-  z-index: 50;
+  top: 0;
+  z-index: 40;
   padding: 8px 6px;
-  border-bottom: 2px solid rgba(0,0,0,0.4);
+  border-bottom: 2px solid #333;
   text-align: center;
+}
+
+thead th:nth-child(2) {
+  text-align: left;
+  padding-left: 12px;
+}
+
+th, td {
+  padding: 8px 6px;
+  text-align: center;
+  border-bottom: 1px solid #333;
   color: var(--text-color);
 }
-thead th:nth-child(2) { text-align: left; padding-left: 12px; }
-th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid rgba(0,0,0,0.06); color: var(--text-color); }
+
 .even-row { background-color: var(--row-even); }
-.odd-row { background-color: var(--row-odd); }
+.odd-row  { background-color: var(--row-odd); }
 
-/* Value colors (used also by JS) */
-.cell-pos { color: var(--cell-pos-color); }
-.cell-neg { color: var(--cell-neg-color); }
-.cell-zero { color: var(--cell-zero-color); }
+td[data-player] {
+  cursor: pointer;
+  transition: transform 0.08s, background 0.08s;
+}
+td[data-player]:active {
+  transform: scale(1.12);
+  background: #222;
+}
 
-/* marker visual */
+/* Time button disabled/read-only appearance */
+.time-btn[disabled],
+.time-btn.disabled-readonly {
+  opacity: 0.7;
+  cursor: default;
+  pointer-events: none;
+  filter: brightness(0.95);
+}
+
+/* Sortier-Pfeil Styling */
+th.sortable { user-select: none; }
+th .sort-arrow { font-size: 0.7rem; color: #ddd }
+
+/* =========================================
+   TORBILD / GOAL MAP SEITE
+   ========================================= */
+.torbild-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 20px;
+  height: calc(100vh - 120px);
+  margin-top: 20px;
+}
+
+.field-column {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.field-box,
+.img-box {
+  background: #1e1e1e;
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 5px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.field-box img,
+.img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.goal-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* marker dots */
 .marker-dot {
   position: absolute;
   width: 14px;
   height: 14px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 6px rgba(0,0,0,0.55);
-  border: 2px solid rgba(255,255,255,0.12);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
 }
 
-/* ---------- Map layout ---------- */
-.torbild-layout {
-  display: flex;
-  justify-content: space-between;
-  align-items: stretch;
-  gap: 20px;
-  height: calc(100vh - 160px);
-  margin-top: 20px;
-}
-.field-column { flex: 1; display:flex; justify-content:center; align-items:center; min-width:220px; }
-.goal-column { flex: 0 0 320px; display:flex; flex-direction:column; gap:15px; justify-content:flex-start; }
-
-/* image boxes */
-.img-box { position: relative; width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-.img-box img { max-width: 100%; max-height: 100%; object-fit:contain; display:block; }
-
-/* time tracking box */
+/* =========================================
+   ZEITERFASSUNG
+   ========================================= */
 .time-tracking-box {
-  display:flex;
-  flex-direction:column;
-  justify-content:flex-end;
-  background:#111;
-  border:2px solid rgba(255,255,255,0.04);
-  border-radius:10px;
-  padding:10px 14px;
-  color:#fff;
-  font-size:0.95rem;
-  height:100%;
-  gap:10px;
-}
-.period { display:grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: auto minmax(1.4em, auto) auto; align-items:center; justify-items:center; row-gap:6px; column-gap:8px; padding:6px 10px; background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); border-radius:8px; }
-.time-btn { width:100%; height:28px; border:none; border-radius:6px; font-weight:700; font-size:13px; cursor:pointer; transition: transform 0.08s, background 0.15s; }
-.period-buttons.top-row .time-btn { background: var(--btn-top-bg); color: #0a0a0a; }
-.period-buttons.bottom-row .time-btn { background: var(--btn-bottom-bg); color: #000; }
-
-/* ---------- Season page ---------- */
-#seasonPage table { width: auto; table-layout: auto; border-collapse: collapse; font-size: 0.95rem; margin: 0 auto; }
-#seasonPage .total-row td { background: var(--header-bg) !important; color: var(--text-color) !important; font-weight:700 !important; border-top:2px solid rgba(0,0,0,0.4); }
-
-/* ---------- Selection page (player list) ---------- */
-.player-list { list-style:none; margin: 12px 0 16px 0; padding: 0; display:flex; flex-direction:column; gap:10px; }
-.player-list li { display:block; }
-.player-line, .custom-line {
-  display:flex;
-  align-items:center;
-  gap:10px;
-  width:100%;
-  padding:8px 10px;
-  border-radius:8px;
-  background: rgba(0,0,0,0.02);
-  border: 1px solid rgba(0,0,0,0.03);
-}
-.player-line input[type="checkbox"], .custom-checkbox { transform: scale(1.05); margin-right:6px; }
-.player-line .num { width:48px; text-align:center; color: var(--muted); font-weight:700; }
-.custom-num { width:56px; padding:6px; border-radius:6px; border:1px solid rgba(0,0,0,0.06); background:transparent; color:var(--text-color); }
-.custom-name { padding:6px; border-radius:6px; border:1px solid rgba(0,0,0,0.06); background:transparent; color:var(--text-color); min-width:0; }
-
-.confirm-btn {
-  display:inline-block;
-  padding:10px 16px;
-  background: #2a9d66;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 10px 14px;
   color: #fff;
-  border: none;
+  font-size: 0.95rem;
+  height: 100%;
+  gap: 10px;
+}
+
+.period {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: auto minmax(1.4em, auto) auto;
+  align-items: center;
+  justify-items: center;
+  row-gap: 2px;
+  column-gap: 12px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.3);
   border-radius: 8px;
+}
+.period-title {
+  grid-column: 1 / -1;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+}
+.period-buttons.top-row,
+.period-buttons.bottom-row,
+.period-numbers { display: contents; }
+.period-numbers span { color: #ccc; font-size: 0.8rem; line-height:1; }
+
+/* Buttons */
+.time-btn {
+  width: 100%;
+  height: 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
   cursor: pointer;
-  font-weight: 700;
+  transition: transform 0.1s, background 0.2s;
 }
+.period-buttons.top-row .time-btn { background: var(--btn-top-bg); }
+.period-buttons.bottom-row .time-btn { background: var(--btn-bottom-bg); }
+.period-buttons.top-row .time-btn:hover { background-color: #b2f0b2; }
+.period-buttons.bottom-row .time-btn:hover { background-color: #ffd3d3; }
+.time-btn:active { transform: scale(1.05); }
 
-/* small utility classes used by JS */
-.num-center { display:inline-block; text-align:center; width:100%; color:var(--muted); font-weight:600; }
-
-/* responsive tweaks */
-@media (max-width: 900px) {
-  .torbild-layout { flex-direction: column; height: auto; }
-  .goal-column { flex: 1 1 auto; width: 100%; }
-  .top-bar { gap: 6px; justify-content: center; }
-  .sticky-header { top: 12px; }
-}
-
-/* accessibility: focus outlines */
-button:focus, input:focus, select:focus { outline: 2px solid rgba(0,160,120,0.25); outline-offset: 2px; }
+/* =========================================
+   SEASON PAGE & TOTAL ROW
+   ========================================= */
+#seasonPage table { width: auto; table-layout: auto; border-collapse
