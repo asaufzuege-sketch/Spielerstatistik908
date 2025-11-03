@@ -8,7 +8,7 @@
 </head>
 <body>
 
-  <!-- SHARED HEADER (single element used by JS to align into pages) -->
+  <!-- GLOBAL HEADER (used by JS; will be aligned per-page) -->
   <div class="page-header" id="globalPageHeader">
     <div class="sticky-header" id="stickyHeader">
       <div class="top-bar">
@@ -25,7 +25,7 @@
     </div>
   </div>
 
-  <!-- SPIELERAUSWAHL -->
+  <!-- SPIELERAUSWAHL (kein eigener Header hier) -->
   <div id="playerSelectionPage" class="page">
     <h1>Spielerauswahl</h1>
     <p class="center-text">Wähle die Spieler, die in der Tabelle angezeigt werden sollen</p>
@@ -42,8 +42,6 @@
 
   <!-- GOAL MAP / TORBILD SEITE -->
   <div id="torbildPage" class="page" style="display:none;">
-    <!-- header removed from here; global stickyHeader will be aligned over map area by JS -->
-
     <div class="torbild-layout">
       <div class="field-column">
         <div class="img-box field-box" id="fieldBox">
@@ -133,7 +131,9 @@
 
   <!-- GOAL VALUE PAGE -->
   <div id="goalValuePage" class="page" style="display:none;">
-    <div style="margin-top:18px; padding:10px;">
+    <!-- Use .table-shell so header alignment spans the full table width.
+         app.js will align the global #stickyHeader from the table left to the Value (last) column. -->
+    <div class="table-shell" style="margin-top:18px; padding:10px;">
       <h1>Goal Value</h1>
       <div id="goalValueContainer"></div>
     </div>
