@@ -1,11 +1,6 @@
 // app.js
-// Vollständige Anwendung mit UI-/Farb-Anpassungen und Header-Alignment-Verbesserungen.
-// Änderungen:
-// - Neue Funktionen alignHeaderToRange / findCommonAncestor, damit der Header exakt zwischen zwei Elementkanten platziert werden kann.
-// - Season-Seite: Header wird bis zur "Time" Spalte (letzte Spalte) erweitert.
-// - Goal Value Seite: Header wird bis zur "Value" Spalte (letzte Spalte) erweitert.
-// - Season Map / Goal Map / Torbild: Header spannt von linkem Rand der Spielfeld-Box bis zum rechten Rand der Tor-Box (goal-column).
-// - Resize-Handler aktualisiert, um für die speziellen Seiten die korrekte Breite neu zu berechnen.
+// Vollständige Anwendung (Header-Layout per HTML/CSS; JS macht keine DOM-Verschiebungen des Headers).
+// Alle Funktionen für Import/Export, Marker, Zeitboxen, Tabellenrendering, Season und GoalValue sind hier enthalten.
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- Elements ---
@@ -18,163 +13,19 @@ document.addEventListener("DOMContentLoaded", () => {
     seasonMap: document.getElementById("seasonMapPage")
   };
 
+  // Header: we no longer move it via JS; kept reference for styling only
   const stickyHeader = document.getElementById("stickyHeader");
 
-  // Header configuration
+  // initHeader: no DOM-repositioning — header positioning handled by HTML/CSS
   function initHeader() {
-    if (!stickyHeader) return;
-    stickyHeader.style.position = "static";
-    stickyHeader.style.display = "block";
-    stickyHeader.style.boxSizing = "border-box";
-    stickyHeader.style.width = "100%";
-    stickyHeader.style.left = "";
-    stickyHeader.style.top = "";
-    if (!stickyHeader.style.padding) stickyHeader.style.padding = "8px 12px";
-    if (!stickyHeader.style.backgroundColor) {
-      const cssHeaderBg = getComputedStyle(document.documentElement).getPropertyValue('--header-bg') || "";
-      stickyHeader.style.backgroundColor = cssHeaderBg ? cssHeaderBg.trim() : "#1E1E1E";
-    }
-    if (!stickyHeader.style.color) stickyHeader.style.color = "#fff";
+    // no-op; keep for compatibility
+    return;
   }
   initHeader();
 
-  // Find common ancestor of two elements
-  function findCommonAncestor(a, b) {
-    if (!a || !b) return null;
-    const ancestors = new Set();
-    let p = a;
-    while (p) { ancestors.add(p); p = p.parentElement; }
-    p = b;
-    while (p) {
-      if (ancestors.has(p)) return p;
-      p = p.parentElement;
-    }
-    return document.body;
-  }
-
-  // Align header to a single target (legacy behavior: header width = target width)
-  function alignHeaderToTarget(targetEl) {
-    if (!stickyHeader || !targetEl) return;
-    try {
-      const parent = targetEl.parentElement || document.body;
-      if (stickyHeader.parentElement !== parent) {
-        parent.insertBefore(stickyHeader, targetEl);
-      }
-      stickyHeader.style.position = "static";
-      stickyHeader.style.width = (targetEl.offsetWidth || targetEl.getBoundingClientRect().width) + "px";
-      stickyHeader.style.marginLeft = "";
-      stickyHeader.style.boxSizing = "border-box";
-    } catch (e) {
-      stickyHeader.style.width = "100%";
-      stickyHeader.style.marginLeft = "0";
-    }
-  }
-
-  // Align header between the left edge of leftEl and the right edge of rightEl.
-  // The header is moved into the nearest common ancestor of leftEl and rightEl and positioned with a left margin.
-  function alignHeaderToRange(leftEl, rightEl) {
-    if (!stickyHeader || !leftEl || !rightEl) return;
-    try {
-      const parent = findCommonAncestor(leftEl, rightEl) || leftEl.parentElement || document.body;
-      // Insert header at top of parent to appear above content
-      if (stickyHeader.parentElement !== parent) {
-        parent.insertBefore(stickyHeader, parent.firstElementChild);
-      }
-      const leftRect = leftEl.getBoundingClientRect();
-      const rightRect = rightEl.getBoundingClientRect();
-      const parentRect = parent.getBoundingClientRect();
-
-      // compute width and left offset relative to parent
-      const widthPx = Math.max(0, rightRect.right - leftRect.left);
-      const leftOffsetPx = Math.max(0, leftRect.left - parentRect.left);
-
-      stickyHeader.style.position = "static";
-      stickyHeader.style.width = widthPx + "px";
-      // margin-left relative to parent
-      stickyHeader.style.marginLeft = leftOffsetPx + "px";
-      stickyHeader.style.boxSizing = "border-box";
-    } catch (e) {
-      // fallback
-      alignHeaderToTarget(leftEl);
-    }
-  }
-
-  // Call on resize to keep header aligned; handle special pages
-  window.addEventListener("resize", () => {
-    const currentPage = localStorage.getItem("currentPage");
-    try {
-      if (currentPage === "season") {
-        const container = document.getElementById("seasonContainer");
-        const table = container && container.querySelector("table");
-        if (table) {
-          const rightTh = table.querySelector("th:last-child") || table.querySelector("thead th:last-child");
-          alignHeaderToRange(table, rightTh || table);
-          return;
-        }
-      } else if (currentPage === "goalValue") {
-        const container = document.getElementById("goalValueContainer");
-        const table = container && container.querySelector("table");
-        if (table) {
-          const rightTh = table.querySelector("th:last-child") || table.querySelector("thead th:last-child");
-          alignHeaderToRange(table, rightTh || table);
-          return;
-        }
-      } else if (currentPage === "seasonMap" || currentPage === "torbild") {
-        // align from field box left to goal-column right
-        const pageId = currentPage === "seasonMap" ? "seasonMapPage" : "torbildPage";
-        const leftBox = document.querySelector(`#${pageId} .field-box`) || document.querySelector(`#${pageId} #fieldBox`) || document.getElementById("fieldBox");
-        const goalCol = document.querySelector(`#${pageId} .goal-column`) || document.querySelector(`#${pageId} .goal-img-box`);
-        if (leftBox && goalCol) {
-          alignHeaderToRange(leftBox, goalCol);
-          return;
-        }
-      }
-
-      // default fallback
-      const target = headerTargetForPage(currentPage);
-      if (target) alignHeaderToTarget(target);
-    } catch (e) {
-      // ignore
-    }
-  });
-
-  // Map of which element to align header to per page (legacy single-target)
-  function headerTargetForPage(page) {
-    if (!page) return null;
-    if (page === "stats") return document.getElementById("statsContainer");
-    if (page === "season") return document.getElementById("seasonContainer");
-    if (page === "seasonMap") return document.getElementById("seasonMapPage");
-    if (page === "torbild") return document.getElementById("torbildPage");
-    if (page === "goalValue") return document.getElementById("goalValueContainer");
-    if (page === "selection") return document.getElementById("playerSelectionPage");
-    return null;
-  }
-
-  function showPage(page) {
-    try {
-      Object.values(pages).forEach(p => { if (p) p.style.display = "none"; });
-      if (pages[page]) pages[page].style.display = "block";
-      localStorage.setItem("currentPage", page);
-
-      if (stickyHeader) stickyHeader.style.display = "block";
-
-      let title = "Spielerstatistik";
-      if (page === "selection") title = "Spielerauswahl";
-      else if (page === "stats") title = "Statistiken";
-      else if (page === "torbild") title = "Goal Map";
-      else if (page === "goalValue") title = "Goal Value";
-      else if (page === "season") title = "Season";
-      else if (page === "seasonMap") title = "Season Map";
-      document.title = title;
-
-      // Align header appropriately (for pages with special alignment, those pages will call the precise align after rendering)
-      const target = headerTargetForPage(page);
-      if (target) alignHeaderToTarget(target);
-    } catch (err) {
-      console.warn("showPage failed:", err);
-    }
-  }
-  window.showPage = showPage;
+  // no-op alignment helpers (kept so other code can call them without effect)
+  function alignHeaderToTarget() { /* no-op */ }
+  function alignHeaderToRange() { /* no-op */ }
 
   // Query elements
   const playerListContainer = document.getElementById("playerList");
@@ -283,6 +134,7 @@ document.addEventListener("DOMContentLoaded", () => {
         playerListContainer.appendChild(li);
       });
 
+    // Five custom lines for user-defined players
     const customSelected = selectedPlayers.filter(sp => !players.some(bp => bp.name === sp.name));
     for (let i = 0; i < 5; i++) {
       const pre = customSelected[i];
@@ -298,17 +150,13 @@ document.addEventListener("DOMContentLoaded", () => {
         </label>`;
       playerListContainer.appendChild(li);
     }
-
-    if (stickyHeader) {
-      const target = headerTargetForPage('selection');
-      if (target) alignHeaderToTarget(target);
-    }
   }
 
   // --- Confirm selection handler ---
   if (confirmSelectionBtn) {
     confirmSelectionBtn.addEventListener("click", () => {
       try {
+        // Build selectedPlayers from the selection UI
         const checkedBoxes = Array.from(playerListContainer.querySelectorAll("input[type='checkbox']:not(.custom-checkbox)")).filter(chk => chk.checked);
         selectedPlayers = checkedBoxes.map(chk => {
           const li = chk.closest("li");
@@ -325,6 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return { num: num || "", name };
         });
 
+        // handle custom
         const allLis = Array.from(playerListContainer.querySelectorAll("li"));
         const customLis = allLis.slice(players.length);
         customLis.forEach((li, ci) => {
@@ -338,13 +187,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         localStorage.setItem("selectedPlayers", JSON.stringify(selectedPlayers));
 
+        // ensure statsData exists for selected players
         selectedPlayers.forEach(p => {
           if (!statsData[p.name]) statsData[p.name] = {};
           categories.forEach(c => { if (statsData[p.name][c] === undefined) statsData[p.name][c] = 0; });
         });
         localStorage.setItem("statsData", JSON.stringify(statsData));
 
-        showPage("stats");
+        showOnly("stats");
         renderStatsTable();
       } catch (err) {
         console.error("Error in confirmSelection handler:", err);
@@ -382,6 +232,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Create Import CSV buttons and apply explicit colors per previous requests ---
   (function setupButtonsAndImports() {
+    // UPDATED COLORS per user request:
     const colorExportSeason = "#e3fba7";
     const colorExportSeasonMap = "#e3fba7";
     const colorSeason = "#44bb91";
@@ -414,22 +265,27 @@ document.addEventListener("DOMContentLoaded", () => {
       exportSeasonFromStatsBtn.style.color = "#000";
     }
 
+    // Helper to create import button with same rounding and sizing as other top buttons
     function createImportButton(id, label, referenceEl, insertBeforeEl = null, insertAfterEl = null) {
       const btn = document.createElement("button");
       btn.id = id;
       btn.type = "button";
       btn.textContent = label;
-      // same base class as top-btn so sizing/styling matches exactly
+      // give same base class as top-btn so sizing/styling matches exactly
       btn.className = "top-btn import-csv-btn";
+      // ensure spacing similar to other top buttons
       btn.style.margin = "0 6px";
+      // set import color requested (also reflected by CSS .import-csv-btn)
       btn.style.backgroundColor = colorImportCSV;
       btn.style.color = "#fff";
+      // insert in DOM: prefer insertBeforeEl, else afterElement nextSibling, else append to referenceEl.parentNode
       if (insertBeforeEl && insertBeforeEl.parentNode) insertBeforeEl.parentNode.insertBefore(btn, insertBeforeEl);
       else if (insertAfterEl && insertAfterEl.parentNode) insertAfterEl.parentNode.insertBefore(btn, insertAfterEl.nextSibling);
       else if (referenceEl && referenceEl.parentNode) referenceEl.parentNode.appendChild(btn);
       return btn;
     }
 
+    // create hidden shared file input (for import)
     const csvFileInput = document.createElement("input");
     csvFileInput.type = "file";
     csvFileInput.accept = ".csv,text/csv";
@@ -451,6 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
       reader.readAsText(file, "utf-8");
     });
 
+    // Stats page import button: between Export CSV and Reset
     if (exportBtn && resetBtn) {
       const importStatsBtn = createImportButton("importCsvStatsBtn", "Import CSV", exportBtn, resetBtn, null);
       importStatsBtn.title = "Importiere CSV (gleiches Format wie Export)";
@@ -460,6 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
+    // Season page import button: right next to Export Season
     if (exportSeasonBtn) {
       const importSeasonBtn = createImportButton("importCsvSeasonBtn", "Import CSV", exportSeasonBtn, null, exportSeasonBtn);
       importSeasonBtn.title = "Importiere Season CSV";
@@ -475,6 +333,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return text.split(/\r?\n/).map(r => r.trim()).filter(r => r.length > 0);
   }
   function parseCsvLine(line) {
+    // simple ; separated parser (no quoted fields handling)
     return line.split(";").map(s => s.trim());
   }
 
@@ -495,6 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const lines = splitCsvLines(txt);
       if (lines.length === 0) { alert("Leere CSV"); return; }
       const header = parseCsvLine(lines[0]);
+      // find category indexes
       const nameIdx = header.findIndex(h => /spieler/i.test(h) || h.toLowerCase() === "spieler");
       const timeIdx = header.findIndex(h => /time/i.test(h) || /zeit/i.test(h));
       const categoryIdxMap = {};
@@ -502,20 +362,24 @@ document.addEventListener("DOMContentLoaded", () => {
         const idx = header.findIndex(h => h.toLowerCase() === cat.toLowerCase());
         if (idx !== -1) categoryIdxMap[cat] = idx;
       });
+      // iterate rows
       for (let i = 1; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
         const name = cols[nameIdx] || "";
         if (!name) continue;
+        // ensure statsData exists
         if (!statsData[name]) statsData[name] = {};
         Object.keys(categoryIdxMap).forEach(cat => {
           const v = Number(cols[categoryIdxMap[cat]] || 0) || 0;
           statsData[name][cat] = v;
         });
+        // time
         if (timeIdx !== -1) {
           const t = parseTimeToSeconds(cols[timeIdx]);
           playerTimes[name] = t;
         }
       }
+      // persist and refresh
       localStorage.setItem("statsData", JSON.stringify(statsData));
       localStorage.setItem("playerTimes", JSON.stringify(playerTimes));
       renderStatsTable();
@@ -575,6 +439,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (idxFaceOffsWon !== -1) seasonData[name].faceOffsWon = Number(cols[idxFaceOffsWon] || 0) || 0;
         if (idxGoalValue !== -1) seasonData[name].goalValue = Number(cols[idxGoalValue] || 0) || 0;
         if (idxTime !== -1) seasonData[name].timeSeconds = parseTimeToSeconds(cols[idxTime]);
+        // number (Num) update
         if (idxNum !== -1) seasonData[name].num = cols[idxNum] || seasonData[name].num || "";
       }
 
@@ -587,7 +452,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // --- Marker helpers with FIELD image sampling (unchanged) ---
+  // --- Marker helpers with FIELD image sampling ---
   const LONG_MARK_MS_INTERNAL = 600;
   const FIELD_RECT = { left: 7, right: 93, top: 5, bottom: 95 };
   function clampPct(v) { return Math.max(0, Math.min(100, v)); }
@@ -868,8 +733,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   attachMarkerHandlersToBoxes(torbildBoxesSelector);
+  attachMarkerHandlersToBoxes(seasonMapBoxesSelector);
 
-  // --- Time tracking helpers (unchanged) ---
+  // --- Time tracking helpers ---
   function initTimeTrackingBox(box, storageKey = "timeData", readOnly = false) {
     if (!box) return;
     let timeDataAll = JSON.parse(localStorage.getItem(storageKey)) || {};
@@ -940,7 +806,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initTimeTrackingBox(torbildTimeTrackingBox, "timeData", false);
   initTimeTrackingBox(seasonMapTimeTrackingBox, "seasonMapTimeData", true);
 
-  // --- Season Map export/import functions (unchanged) ---
   function readTimeTrackingFromBox(box) {
     const result = {};
     if (!box) return result;
@@ -985,11 +850,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const timeData = readTimeTrackingFromBox(torbildTimeTrackingBox);
     localStorage.setItem("seasonMapTimeData", JSON.stringify(timeData));
 
-    showPage("seasonMap");
+    showOnly("seasonMap");
     renderSeasonMapPage();
   }
 
-  // --- NEW: renderGoalAreaStats() (unchanged visual behavior, opacity previously set) ---
   function renderGoalAreaStats() {
     const seasonMapRoot = document.getElementById("seasonMapPage");
     if (!seasonMapRoot) return;
@@ -1097,29 +961,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function exportSeasonMapFromTorbild() {
-    const boxes = Array.from(document.querySelectorAll(torbildBoxesSelector));
-    const allMarkers = boxes.map(box => {
-      const markers = [];
-      box.querySelectorAll(".marker-dot").forEach(dot => {
-        const left = dot.style.left || "";
-        const top = dot.style.top || "";
-        const bg = dot.style.backgroundColor || "";
-        const xPct = parseFloat(left.replace("%","")) || 0;
-        const yPct = parseFloat(top.replace("%","")) || 0;
-        markers.push({ xPct, yPct, color: bg });
-      });
-      return markers;
-    });
-    localStorage.setItem("seasonMapMarkers", JSON.stringify(allMarkers));
-
-    const timeData = readTimeTrackingFromBox(torbildTimeTrackingBox);
-    localStorage.setItem("seasonMapTimeData", JSON.stringify(timeData));
-
-    showPage("seasonMap");
-    renderSeasonMapPage();
-  }
-
   function renderSeasonMapPage() {
     const boxes = Array.from(document.querySelectorAll(seasonMapBoxesSelector));
     boxes.forEach(box => box.querySelectorAll(".marker-dot").forEach(d => d.remove()));
@@ -1155,21 +996,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // render overlays
     renderGoalAreaStats();
-
-    // Align header above map area: from field-box left to goal-column right
-    try {
-      const leftBox = document.querySelector("#seasonMapPage .field-box") || document.getElementById("seasonFieldBox");
-      const goalCol = document.querySelector("#seasonMapPage .goal-column") || document.querySelector("#seasonMapPage .goal-img-box");
-      if (leftBox && goalCol) {
-        alignHeaderToRange(leftBox, goalCol);
-      } else {
-        const target = headerTargetForPage('seasonMap');
-        if (target) alignHeaderToTarget(target);
-      }
-    } catch (e) {
-      const target = headerTargetForPage('seasonMap');
-      if (target) alignHeaderToTarget(target);
-    }
   }
 
   function resetSeasonMap() {
@@ -1188,25 +1014,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Ensure torbild page header alignment when opening torbild
-  if (torbildBtn) {
-    torbildBtn.addEventListener("click", () => {
-      showPage("torbild");
-      // small delay to let layout settle
-      setTimeout(() => {
-        const leftBox = document.getElementById("fieldBox") || document.querySelector("#torbildPage .field-box");
-        const goalCol = document.querySelector("#torbildPage .goal-column") || document.querySelector("#torbildPage .goal-img-box");
-        if (leftBox && goalCol) alignHeaderToRange(leftBox, goalCol);
-      }, 60);
-    });
-  }
   if (seasonMapBtn) {
     seasonMapBtn.addEventListener("click", () => {
-      showPage("seasonMap");
+      showOnly("seasonMap");
       renderSeasonMapPage();
     });
   }
-  if (backToStatsFromSeasonMapBtn) backToStatsFromSeasonMapBtn.addEventListener("click", () => showPage("stats"));
+  if (backToStatsFromSeasonMapBtn) backToStatsFromSeasonMapBtn.addEventListener("click", () => showOnly("stats"));
   if (document.getElementById("resetSeasonMapBtn")) document.getElementById("resetSeasonMapBtn").addEventListener("click", resetSeasonMap);
 
   // --- Season export (Stats -> Season) ---
@@ -1278,7 +1092,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderStatsTable();
     }
 
-    showPage("season");
+    showOnly("season");
     renderSeasonTable();
 
     alert("Daten wurden als Spiel in die Season-Tabelle übernommen.");
@@ -1327,6 +1141,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const table = document.createElement("table");
     table.className = "stats-table";
 
+    // round outer corners for all tables
     table.style.borderRadius = "8px";
     table.style.overflow = "hidden";
     table.style.borderCollapse = "separate";
@@ -1371,6 +1186,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const goalsPerGame = games ? (goals / games) : 0;
       const pointsPerGame = games ? (points / games) : 0;
 
+      // Goal Value
       let goalValue = "";
       try {
         if (typeof computeValueForPlayer === "function") {
@@ -1394,6 +1210,7 @@ document.addEventListener("DOMContentLoaded", () => {
         (penaltyPerGame * 1.2)
       );
 
+      // Round to 1 decimal for display & ranking
       const mvpPointsRounded = Number(Number(mvpPointsNum).toFixed(1));
 
       const cells = [
@@ -1422,6 +1239,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return { name: d.name, num: d.num || "", cells, raw: { games, goals, assists, points, plusMinus, shots, penalty, faceOffs, faceOffsWon, faceOffPercent, timeSeconds, goalValue }, mvpPointsRounded };
     });
 
+    // Assign ranks based on rounded points
     const sortedByMvp = rows.slice().sort((a,b) => (b.mvpPointsRounded || 0) - (a.mvpPointsRounded || 0));
     const uniqueScores = [...new Set(sortedByMvp.map(r => r.mvpPointsRounded))];
     const scoreToRank = {};
@@ -1460,7 +1278,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const count = rows.length || 0;
-    const headerBgColor = getComputedStyle(document.documentElement).getPropertyValue('--header-bg') || "#1E1E1E";
+    const headerBgColor = getComputedStyle(document.documentElement).getPropertyValue('--header-bg') || "#262626";
     const headerTextColor = getComputedStyle(document.documentElement).getPropertyValue('--text-color') || "#fff";
     headerRow.querySelectorAll("th").forEach(th => {
       th.style.background = headerBgColor;
@@ -1535,6 +1353,7 @@ document.addEventListener("DOMContentLoaded", () => {
       totalCells.forEach(c => {
         const td = document.createElement("td");
         td.textContent = c;
+        // Make total row visually like header/title row
         td.style.background = headerBgColor;
         td.style.color = headerTextColor;
         td.style.fontWeight = "700";
@@ -1561,14 +1380,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     table.appendChild(tbody);
     container.appendChild(table);
-
-    // After render align header: span from left of table to right of the last (time) th
-    try {
-      const rightTh = table.querySelector("th:last-child") || headerRow.querySelector("th:nth-child(" + headerCols.length + ")");
-      alignHeaderToRange(table, rightTh || table);
-    } catch (e) {
-      alignHeaderToTarget(container);
-    }
 
     function updateSortUI() {
       const ths = table.querySelectorAll("th.sortable");
@@ -1605,17 +1416,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const table = document.createElement("table");
     table.className = "stats-table";
 
+    // round outer corners & hide overflow to make header/title rounded
     table.style.borderRadius = "8px";
     table.style.overflow = "hidden";
     table.style.borderCollapse = "separate";
     table.style.borderSpacing = "0";
 
+    // thead
     const thead = document.createElement("thead");
     const headerRow = document.createElement("tr");
     headerRow.innerHTML = `<th>#</th><th>Spieler</th>` + categories.map(c => `<th>${c}</th>`).join("") + `<th>Time</th>`;
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
+    // apply header background/color to match unified header color
     const headerBgColor = getComputedStyle(document.documentElement).getPropertyValue('--header-bg') || "#1E1E1E";
     const headerTextColor = getComputedStyle(document.documentElement).getPropertyValue('--text-color') || "#fff";
     headerRow.querySelectorAll("th").forEach(th => {
@@ -1625,6 +1439,7 @@ document.addEventListener("DOMContentLoaded", () => {
       th.style.padding = "8px";
     });
 
+    // tbody
     const tbody = document.createElement("tbody");
     tbody.addEventListener("dragover", (e) => { e.preventDefault(); });
     tbody.addEventListener("drop", (e) => {
@@ -1708,6 +1523,7 @@ document.addEventListener("DOMContentLoaded", () => {
       iceTd.textContent = `${m}:${s}`;
       tr.appendChild(iceTd);
 
+      // long-press drag enable on name cell
       (function(nameCell, playerName, rowEl) {
         const LONG_DRAG_MS = 500;
         let holdTimer = null;
@@ -1741,6 +1557,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         nameCell.addEventListener("click", (ev) => {
           if (suppressClick) { suppressClick = false; return; }
+          // toggle player's timer
           if (activeTimers[playerName]) {
             clearInterval(activeTimers[playerName]);
             delete activeTimers[playerName];
@@ -1766,6 +1583,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tbody.appendChild(tr);
     });
 
+    // totals row styled like season header
     const totalsRow = document.createElement("tr");
     totalsRow.id = "totalsRow";
     const tdEmpty = document.createElement("td"); tdEmpty.textContent = "";
@@ -1785,6 +1603,7 @@ document.addEventListener("DOMContentLoaded", () => {
     tdTimeTotal.textContent = "";
     totalsRow.appendChild(tdTimeTotal);
 
+    // Apply header-like style to total row so it matches season's title row
     const headerBg = headerBgColor;
     const headerColor = headerTextColor;
     Array.from(totalsRow.children).forEach(td => {
@@ -1799,6 +1618,7 @@ document.addEventListener("DOMContentLoaded", () => {
     table.appendChild(tbody);
     statsContainer.appendChild(table);
 
+    // attach click/dblclick to stat cells
     statsContainer.querySelectorAll("td[data-player]").forEach(td => {
       let clickTimeout = null;
       td.addEventListener("click", (e) => {
@@ -1817,8 +1637,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateIceTimeColors();
     updateTotals();
-
-    if (stickyHeader) alignHeaderToTarget(statsContainer);
   }
 
   // --- change value helper ---
@@ -1891,7 +1709,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- timer helpers (unchanged) ---
+  // --- timer helpers ---
   function updateTimerDisplay(){
     const m = String(Math.floor(timerSeconds / 60)).padStart(2,"0");
     const s = String(timerSeconds % 60).padStart(2,"0");
@@ -1965,42 +1783,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("resetSeasonMapBtn")?.addEventListener("click", resetSeasonMap);
 
-  // --- Pages navigation --- (use showPageRef to keep alignment)
-  function showPageFull(page) {
+  // --- Pages navigation (simple show/hide) ---
+  function showOnly(page) {
     Object.values(pages).forEach(p => { if (p) p.style.display = "none"; });
     if (pages[page]) pages[page].style.display = "block";
     localStorage.setItem("currentPage", page);
-
-    if (stickyHeader) stickyHeader.style.display = "block";
-
-    let title = "Spielerstatistik";
-    if (page === "selection") title = "Spielerauswahl";
-    else if (page === "stats") title = "Statistiken";
-    else if (page === "torbild") title = "Goal Map";
-    else if (page === "goalValue") title = "Goal Value";
-    else if (page === "season") title = "Season";
-    else if (page === "seasonMap") title = "Season Map";
-    document.title = title;
-
-    setTimeout(updateTimerDisplay, 20);
-    setTimeout(() => {
-      if (page === "season") renderSeasonTable();
-      if (page === "goalValue") renderGoalValuePage();
-      if (page === "seasonMap") renderSeasonMapPage();
-      // align header to target area (each render function handles special alignment)
-      const target = headerTargetForPage(page);
-      if (target) alignHeaderToTarget(target);
-    }, 60);
   }
-  window.showPage = showPageFull;
-  const showPageRef = window.showPage;
 
-  selectPlayersBtn?.addEventListener("click", () => showPageRef("selection"));
-  backToStatsBtn?.addEventListener("click", () => showPageRef("stats"));
-  backToStatsFromSeasonBtn?.addEventListener("click", () => showPageRef("stats"));
-  seasonBtn?.addEventListener("click", () => { showPageRef("season"); renderSeasonTable(); });
-  goalValueBtn?.addEventListener("click", () => showPageRef("goalValue"));
-  backFromGoalValueBtn?.addEventListener("click", () => showPageRef("stats"));
+  selectPlayersBtn?.addEventListener("click", () => showOnly("selection"));
+  torbildBtn?.addEventListener("click", () => { showOnly("torbild"); });
+  backToStatsBtn?.addEventListener("click", () => showOnly("stats"));
+  backToStatsFromSeasonBtn?.addEventListener("click", () => showOnly("stats"));
+  seasonBtn?.addEventListener("click", () => { showOnly("season"); renderSeasonTable(); });
+  goalValueBtn?.addEventListener("click", () => showOnly("goalValue"));
+  backFromGoalValueBtn?.addEventListener("click", () => showOnly("stats"));
   resetGoalValueBtn?.addEventListener("click", resetGoalValuePage);
 
   // Season CSV export in header
@@ -2041,7 +1837,7 @@ document.addEventListener("DOMContentLoaded", () => {
     URL.revokeObjectURL(a.href);
   });
 
-  // ----- GOAL VALUE Helpers (unchanged) -----
+  // ----- GOAL VALUE Helpers -----
   function getGoalValueOpponents() {
     try {
       const raw = localStorage.getItem("goalValueOpponents");
@@ -2142,6 +1938,7 @@ document.addEventListener("DOMContentLoaded", () => {
     table.className = "goalvalue-table";
     table.style.width = "100%";
     table.style.borderCollapse = "collapse";
+    // rounded corners for this table as well
     table.style.borderRadius = "8px";
     table.style.overflow = "hidden";
 
@@ -2291,14 +2088,6 @@ document.addEventListener("DOMContentLoaded", () => {
     tbody.appendChild(bottomRow);
     table.appendChild(tbody);
     goalValueContainer.appendChild(table);
-
-    // Align header to span from left of table to rightmost (Value) column
-    try {
-      const rightTh = table.querySelector("th:last-child") || table.querySelector("thead th:last-child");
-      alignHeaderToRange(table, rightTh || table);
-    } catch (e) {
-      alignHeaderToTarget(goalValueContainer);
-    }
   }
 
   function resetGoalValuePage() {
@@ -2320,20 +2109,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const lastPage = localStorage.getItem("currentPage") || (selectedPlayers.length ? "stats" : "selection");
   if (lastPage === "stats") {
-    showPageRef("stats");
+    showOnly("stats");
     renderStatsTable();
     updateIceTimeColors();
   } else if (lastPage === "season") {
-    showPageRef("season");
+    showOnly("season");
     renderSeasonTable();
   } else if (lastPage === "seasonMap") {
-    showPageRef("seasonMap");
+    showOnly("seasonMap");
     renderSeasonMapPage();
   } else if (lastPage === "goalValue") {
-    showPageRef("goalValue");
+    showOnly("goalValue");
     renderGoalValuePage();
   } else {
-    showPageRef("selection");
+    showOnly("selection");
   }
 
   // initial timer display
