@@ -9,7 +9,7 @@
 <body>
 
   <!-- GLOBAL HEADER (single element, JS will align/move it per page) -->
-  <div class="page-header" id="globalPageHeader" style="display:none;">
+  <div class="page-header" id="globalPageHeader">
     <div class="sticky-header" id="stickyHeader">
       <div class="top-bar" id="globalTopBar">
         <button id="timerBtn" class="top-btn timer timer-left reset" aria-label="Spieluhr">00:00</button>
@@ -25,7 +25,7 @@
     </div>
   </div>
 
-  <!-- SPIELERAUSWAHL (no page-local header here; global header will be hidden) -->
+  <!-- SPIELERAUSWAHL (no page-local header here; global header will be hidden by JS when not needed) -->
   <div id="playerSelectionPage" class="page">
     <h1>Spielerauswahl</h1>
     <p class="center-text">Wähle die Spieler, die in der Tabelle angezeigt werden sollen</p>
@@ -43,7 +43,6 @@
 
   <!-- GOAL MAP / TORBILD SEITE -->
   <div id="torbildPage" class="page" style="display:none;">
-    <!-- header area is intentionally not duplicated here; global header will be aligned over the map -->
     <div class="torbild-layout">
       <div class="field-column">
         <div class="img-box field-box" id="fieldBox">
@@ -133,7 +132,6 @@
 
   <!-- GOAL VALUE PAGE -->
   <div id="goalValuePage" class="page" style="display:none;">
-    <!-- header area not duplicated; global header will be aligned over the table left..Value column right -->
     <div class="table-shell" style="margin-top:18px; padding:10px;">
       <h1>Goal Value</h1>
       <div id="goalValueContainer"></div>
@@ -142,7 +140,6 @@
 
   <!-- SEASON MAP PAGE -->
   <div id="seasonMapPage" class="page" style="display:none;">
-    <!-- header area not duplicated; global header will be aligned from field left to goal-column right -->
     <div style="margin-top:18px; padding:10px;">
       <h1>Season Map</h1>
     </div>
