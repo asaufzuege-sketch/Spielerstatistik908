@@ -53,6 +53,8 @@ body {
 .page {
   width: 100%;
   max-width: 1100px;
+  /* ensure page acts as a boundary for absolutely positioned header if needed */
+  position: relative;
 }
 
 /* =========================================
@@ -148,20 +150,25 @@ h1 {
 /* =========================================
    STICKY HEADER / BUTTONS (ANPASSUNG: alle Buttons in einer Reihe)
    ========================================= */
-/* sticky header base */
+/* sticky header base
+   NOTE: header is positioned absolutely by JS to avoid affecting layout.
+*/
 .sticky-header {
-  position: relative;
-  z-index: 50;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
   background: var(--header-bg);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
   border-radius: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 10px; /* still useful for spacing if header becomes static fallback */
   padding: 8px 12px;
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
   box-sizing: border-box;
+  pointer-events: auto;
 }
 
 /* TOP BAR: jetzt keine Umbrüche, horizontales Scrollen falls nötig */
@@ -262,7 +269,7 @@ th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid rgba(0,0
 .field-column { flex: 1; display:flex; justify-content:center; align-items:center; min-width:220px; }
 .goal-column { flex: 0 0 320px; display:flex; flex-direction:column; gap:15px; justify-content:flex-start; }
 .img-box { position: relative; width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-.img-box img { max-width: 100%; max-height: 100%; object-fit:contain; display:block; }
+.img-box img { max-width: 100%; max-height: 100%; object-fit:contain; display:block; height: auto; }
 
 /* time tracking */
 .time-tracking-box {
@@ -278,7 +285,7 @@ th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid rgba(0,0
   height:100%;
   gap:10px;
 }
-.period { display:grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: auto minmax(1.4em, auto) auto; align-items:center; justify-items:center; row-gap:6px; column-gap:8px; padding:6px 10px; background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); border-radius:8px; }
+.period { display:grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: auto minmax(1.4em, auto) auto; align-items:center; justify-items:center; row-gap:6px; column-gap:8px; padding:6px 8px; }
 .time-btn { width:100%; height:28px; border:none; border-radius:6px; font-weight:700; font-size:13px; cursor:pointer; transition: transform 0.08s, background 0.15s; }
 .period-buttons.top-row .time-btn { background: var(--btn-top-bg); color: #0a0a0a; }
 .period-buttons.bottom-row .time-btn { background: var(--btn-bottom-bg); color: #000; }
@@ -296,6 +303,8 @@ th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid rgba(0,0
   padding: 4px 6px;
   color: inherit;
   text-align: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* =========================================
