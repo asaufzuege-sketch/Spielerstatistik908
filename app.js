@@ -1,11 +1,9 @@
 // app.js
 // Vollständige Anwendung mit UI-/Farb-Anpassungen und Header-Alignment-Verbesserungen.
 // Änderungen:
-// - Neue Funktionen alignHeaderToRange / findCommonAncestor, damit der Header exakt zwischen zwei Elementkanten platziert werden kann.
-// - Season-Seite: Header wird bis zur "Time" Spalte (letzte Spalte) erweitert.
-// - Goal Value Seite: Header wird bis zur "Value" Spalte (letzte Spalte) erweitert.
-// - Season Map / Goal Map / Torbild: Header spannt von linkem Rand der Spielfeld-Box bis zum rechten Rand der Tor-Box (goal-column).
-// - Resize-Handler aktualisiert, um für die speziellen Seiten the korrekte Breite neu zu berechnen.
+// - Header wird absolut in den gemeinsamen Ancestor eingesetzt (verursacht kein Reflow).
+// - ResizeObserver + MutationObserver sorgen dafür, dass Alignment bei Änderungen automatisch neu berechnet wird.
+// - Parent position wird sicher gesetzt und wiederhergestellt.
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- Elements ---
@@ -20,23 +18,90 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const stickyHeader = document.getElementById("stickyHeader");
 
+  // Keep track of alignment targets so observers can re-run alignment on mutations/resizes
+  let lastAlignment = { mode: null, leftEl: null, rightEl: null, targetEl: null };
+  let currentAlignmentParent = null;
+  let alignmentObservers = { resize: null, mutation: null };
+
   // Header configuration
   function initHeader() {
     if (!stickyHeader) return;
-    stickyHeader.style.position = "static";
-    stickyHeader.style.display = "block";
+    // default to absolute so it doesn't affect document flow
+    stickyHeader.style.position = "absolute";
+    stickyHeader.style.top = "0px";
+    stickyHeader.style.left = "0px";
     stickyHeader.style.boxSizing = "border-box";
     stickyHeader.style.width = "100%";
-    stickyHeader.style.left = "";
-    stickyHeader.style.top = "";
-    if (!stickyHeader.style.padding) stickyHeader.style.padding = "8px 12px";
-    if (!stickyHeader.style.backgroundColor) {
-      const cssHeaderBg = getComputedStyle(document.documentElement).getPropertyValue('--header-bg') || "";
-      stickyHeader.style.backgroundColor = cssHeaderBg ? cssHeaderBg.trim() : "#1E1E1E";
-    }
-    if (!stickyHeader.style.color) stickyHeader.style.color = "#fff";
+    stickyHeader.style.zIndex = 9999;
+    stickyHeader.style.display = "block";
+    // ensure readable background color
+    const cssHeaderBg = getComputedStyle(document.documentElement).getPropertyValue('--header-bg') || "";
+    stickyHeader.style.backgroundColor = cssHeaderBg ? cssHeaderBg.trim() : "#1E1E1E";
+    stickyHeader.style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-color') || "#fff";
   }
   initHeader();
+
+  // Restore position style on previous parent if we changed it
+  function restoreParentPosition(parent) {
+    try {
+      if (!parent) return;
+      const orig = parent.getAttribute('data-orig-position');
+      if (orig !== null) {
+        parent.style.position = orig;
+        parent.removeAttribute('data-orig-position');
+      }
+    } catch (e) {}
+  }
+
+  function setParentPositionRelative(parent) {
+    try {
+      if (!parent) return;
+      if (currentAlignmentParent && currentAlignmentParent !== parent) {
+        restoreParentPosition(currentAlignmentParent);
+        // disconnect existing observers as we switch parent
+        if (alignmentObservers.resize) { alignmentObservers.resize.disconnect(); alignmentObservers.resize = null; }
+        if (alignmentObservers.mutation) { alignmentObservers.mutation.disconnect(); alignmentObservers.mutation = null; }
+      }
+      currentAlignmentParent = parent;
+      // store original inline style to restore later
+      if (!parent.hasAttribute('data-orig-position')) parent.setAttribute('data-orig-position', parent.style.position || '');
+      if (!parent.style.position || parent.style.position === 'static') {
+        parent.style.position = 'relative';
+      }
+    } catch (e) {}
+  }
+
+  // Observers: re-run last alignment on size/mutation changes
+  function ensureAlignmentObservers(parent) {
+    try {
+      if (!parent) return;
+      // Disconnect previous
+      if (alignmentObservers.resize) { alignmentObservers.resize.disconnect(); alignmentObservers.resize = null; }
+      if (alignmentObservers.mutation) { alignmentObservers.mutation.disconnect(); alignmentObservers.mutation = null; }
+
+      // ResizeObserver to react to layout changes
+      alignmentObservers.resize = new ResizeObserver(() => {
+        if (lastAlignment.mode === 'range' && lastAlignment.leftEl && lastAlignment.rightEl) {
+          alignHeaderToRange(lastAlignment.leftEl, lastAlignment.rightEl);
+        } else if (lastAlignment.mode === 'target' && lastAlignment.targetEl) {
+          alignHeaderToTarget(lastAlignment.targetEl);
+        }
+      });
+      alignmentObservers.resize.observe(parent);
+
+      // MutationObserver in case inputs change width/DOM changes inside the parent
+      alignmentObservers.mutation = new MutationObserver(() => {
+        if (lastAlignment.mode === 'range' && lastAlignment.leftEl && lastAlignment.rightEl) {
+          alignHeaderToRange(lastAlignment.leftEl, lastAlignment.rightEl);
+        } else if (lastAlignment.mode === 'target' && lastAlignment.targetEl) {
+          alignHeaderToTarget(lastAlignment.targetEl);
+        }
+      });
+      alignmentObservers.mutation.observe(parent, { attributes: true, childList: true, subtree: true, characterData: true });
+    } catch (e) {
+      // ignore
+    }
+  }
 
   // Find common ancestor of two elements
   function findCommonAncestor(a, b) {
@@ -57,29 +122,59 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!stickyHeader || !targetEl) return;
     try {
       const parent = targetEl.parentElement || document.body;
+      setParentPositionRelative(parent);
+      // remember alignment for observers
+      lastAlignment = { mode: 'target', targetEl: targetEl, leftEl: null, rightEl: null };
+      ensureAlignmentObservers(parent);
+
+      // Insert header at top of parent so it visually sits above the content
       if (stickyHeader.parentElement !== parent) {
-        parent.insertBefore(stickyHeader, targetEl);
+        parent.insertBefore(stickyHeader, parent.firstElementChild);
       }
-      stickyHeader.style.position = "static";
-      stickyHeader.style.width = (targetEl.offsetWidth || targetEl.getBoundingClientRect().width) + "px";
-      stickyHeader.style.marginLeft = "";
-      stickyHeader.style.boxSizing = "border-box";
+
+      // compute dimensions relative to parent
+      const targetRect = targetEl.getBoundingClientRect();
+      const parentRect = parent.getBoundingClientRect();
+
+      const widthPx = Math.max(0, targetRect.width || targetEl.offsetWidth || 0);
+      const leftOffsetPx = Math.max(0, targetRect.left - parentRect.left);
+
+      stickyHeader.style.position = 'absolute';
+      stickyHeader.style.left = leftOffsetPx + 'px';
+      stickyHeader.style.top = '0px';
+      stickyHeader.style.width = widthPx + 'px';
+      stickyHeader.style.marginLeft = '';
+      stickyHeader.style.boxSizing = 'border-box';
+      stickyHeader.style.zIndex = 9999;
     } catch (e) {
-      stickyHeader.style.width = "100%";
-      stickyHeader.style.marginLeft = "0";
+      // fallback: try to insert into body
+      try {
+        document.body.appendChild(stickyHeader);
+        stickyHeader.style.position = 'fixed';
+        stickyHeader.style.left = '0px';
+        stickyHeader.style.top = '0px';
+        stickyHeader.style.width = '100%';
+      } catch (er) {}
     }
   }
 
   // Align header between the left edge of leftEl and the right edge of rightEl.
-  // The header is moved into the nearest common ancestor of leftEl and rightEl and positioned with a left margin.
+  // The header is moved into the nearest common ancestor of leftEl and rightEl and positioned absolutely.
   function alignHeaderToRange(leftEl, rightEl) {
     if (!stickyHeader || !leftEl || !rightEl) return;
     try {
       const parent = findCommonAncestor(leftEl, rightEl) || leftEl.parentElement || document.body;
+      setParentPositionRelative(parent);
+
+      // remember alignment for observers
+      lastAlignment = { mode: 'range', leftEl: leftEl, rightEl: rightEl, targetEl: null };
+      ensureAlignmentObservers(parent);
+
       // Insert header at top of parent to appear above content
       if (stickyHeader.parentElement !== parent) {
         parent.insertBefore(stickyHeader, parent.firstElementChild);
       }
+
       const leftRect = leftEl.getBoundingClientRect();
       const rightRect = rightEl.getBoundingClientRect();
       const parentRect = parent.getBoundingClientRect();
@@ -88,13 +183,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const widthPx = Math.max(0, rightRect.right - leftRect.left);
       const leftOffsetPx = Math.max(0, leftRect.left - parentRect.left);
 
-      stickyHeader.style.position = "static";
-      stickyHeader.style.width = widthPx + "px";
-      // margin-left relative to parent
-      stickyHeader.style.marginLeft = leftOffsetPx + "px";
-      stickyHeader.style.boxSizing = "border-box";
+      stickyHeader.style.position = 'absolute';
+      stickyHeader.style.left = leftOffsetPx + 'px';
+      stickyHeader.style.top = '0px';
+      stickyHeader.style.width = widthPx + 'px';
+      stickyHeader.style.boxSizing = 'border-box';
+      stickyHeader.style.marginLeft = '';
+      stickyHeader.style.zIndex = 9999;
     } catch (e) {
-      // fallback
+      // fallback to target behaviour
       alignHeaderToTarget(leftEl);
     }
   }
@@ -103,34 +200,15 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", () => {
     const currentPage = localStorage.getItem("currentPage");
     try {
-      if (currentPage === "season") {
-        const container = document.getElementById("seasonContainer");
-        const table = container && container.querySelector("table");
-        if (table) {
-          const rightTh = table.querySelector("th:last-child") || table.querySelector("thead th:last-child");
-          alignHeaderToRange(table, rightTh || table);
-          return;
-        }
-      } else if (currentPage === "goalValue") {
-        const container = document.getElementById("goalValueContainer");
-        const table = container && container.querySelector("table");
-        if (table) {
-          const rightTh = table.querySelector("th:last-child") || table.querySelector("thead th:last-child");
-          alignHeaderToRange(table, rightTh || table);
-          return;
-        }
-      } else if (currentPage === "seasonMap" || currentPage === "torbild") {
-        // align from field box left to goal-column right
-        const pageId = currentPage === "seasonMap" ? "seasonMapPage" : "torbildPage";
-        const leftBox = document.querySelector(`#${pageId} .field-box`) || document.querySelector(`#${pageId} #fieldBox`) || document.getElementById("fieldBox");
-        const goalCol = document.querySelector(`#${pageId} .goal-column`) || document.querySelector(`#${pageId} .goal-img-box`);
-        if (leftBox && goalCol) {
-          alignHeaderToRange(leftBox, goalCol);
-          return;
-        }
+      if (lastAlignment.mode === 'range' && lastAlignment.leftEl && lastAlignment.rightEl) {
+        alignHeaderToRange(lastAlignment.leftEl, lastAlignment.rightEl);
+        return;
+      } else if (lastAlignment.mode === 'target' && lastAlignment.targetEl) {
+        alignHeaderToTarget(lastAlignment.targetEl);
+        return;
       }
 
-      // default fallback
+      // fallback: use page-based target
       const target = headerTargetForPage(currentPage);
       if (target) alignHeaderToTarget(target);
     } catch (e) {
@@ -203,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const seasonMapBoxesSelector = "#seasonMapPage .field-box, #seasonMapPage .goal-img-box";
 
   const torbildTimeTrackingBox = document.getElementById("timeTrackingBox");
-  const seasonMapTimeTrackingBox = document.getElementById("seasonMapTimeTrackingBox");
+  const seasonMapTimeTrackingBox = document.getElementById("seasonTimeTrackingBox");
 
   const goalValueContainer = document.getElementById("goalValueContainer");
   const resetGoalValueBtn = document.getElementById("resetGoalValueBtn");
@@ -271,7 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (p.num || p.num === 0) {
           numAreaHtml = `<div class="num" style="flex:0 0 48px;text-align:center;"><strong>${p.num}</strong></div>`;
         } else {
-          numAreaHtml = `<div style="flex:0 0 64px;text-align:center;"><input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px;" /></div>`;
+          numAreaHtml = `<div style="flex:0 0 64px;text-align:center;"><input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px;"></div>`;
         }
 
         li.innerHTML = `
@@ -2172,7 +2250,16 @@ document.addEventListener("DOMContentLoaded", () => {
         arr[idx] = input.value || `Opponent ${idx+1}`;
         setGoalValueOpponents(arr);
         ensureGoalValueDataForSeason();
+        // re-render to pick up changed widths and values
         renderGoalValuePage();
+      });
+      // Also ensure alignment updates while typing (avoid layout jumps)
+      input.addEventListener("input", () => {
+        // run alignment recalculation so header matches new width
+        try {
+          const rightTh = table.querySelector("th:last-child") || table.querySelector("thead th:last-child");
+          alignHeaderToRange(table, rightTh || table);
+        } catch (e) { alignHeaderToTarget(goalValueContainer); }
       });
       th.appendChild(input);
       headerRow.appendChild(th);
@@ -2243,115 +2330,4 @@ document.addEventListener("DOMContentLoaded", () => {
     bottomRow.style.background = "rgba(0,0,0,0.05)";
     const bottomLabel = document.createElement("td");
     bottomLabel.style.padding = "6px";
-    bottomLabel.style.fontWeight = "700";
-    bottomLabel.style.textAlign = "center";
-    bottomLabel.textContent = "Goal Value";
-    bottomRow.appendChild(bottomLabel);
-
-    const goalValueOptions = [];
-    for (let v=0; v<=10; v++) goalValueOptions.push((v*0.5).toFixed(1));
-
-    const bottomStored = getGoalValueBottom();
-    while (bottomStored.length < opponents.length) bottomStored.push(0);
-    if (bottomStored.length > opponents.length) bottomStored.length = opponents.length;
-    setGoalValueBottom(bottomStored);
-
-    opponents.forEach((op, idx) => {
-      const td = document.createElement("td");
-      td.style.padding = "6px";
-      td.style.textAlign = "center";
-      const sel = document.createElement("select");
-      sel.style.width = "80px";
-      goalValueOptions.forEach(opt => {
-        const o = document.createElement("option");
-        o.value = opt;
-        o.textContent = opt;
-        sel.appendChild(o);
-      });
-      const b = getGoalValueBottom();
-      if (b && typeof b[idx] !== "undefined") sel.value = String(b[idx]);
-      sel.addEventListener("change", () => {
-        const arr = getGoalValueBottom();
-        arr[idx] = Number(sel.value);
-        setGoalValueBottom(arr);
-        Object.keys(valueCellMap).forEach(playerName => {
-          const el = valueCellMap[playerName];
-          if (el) el.textContent = formatValueNumber(computeValueForPlayer(playerName));
-        });
-      });
-      td.appendChild(sel);
-      bottomRow.appendChild(td);
-    });
-
-    const tdEmptyForValue = document.createElement("td");
-    tdEmptyForValue.style.padding = "6px";
-    tdEmptyForValue.textContent = "";
-    bottomRow.appendChild(tdEmptyForValue);
-
-    tbody.appendChild(bottomRow);
-    table.appendChild(tbody);
-    goalValueContainer.appendChild(table);
-
-    // Align header to span from left of table to rightmost (Value) column
-    try {
-      const rightTh = table.querySelector("th:last-child") || table.querySelector("thead th:last-child");
-      alignHeaderToRange(table, rightTh || table);
-    } catch (e) {
-      alignHeaderToTarget(goalValueContainer);
-    }
-  }
-
-  function resetGoalValuePage() {
-    if (!confirm("⚠️ Goal Value zurücksetzen? Alle Spielerwerte auf 0 und Skalen auf 0 setzen.")) return;
-    const opponents = getGoalValueOpponents();
-    const playerNames = Object.keys(seasonData).length ? Object.keys(seasonData) : selectedPlayers.map(p=>p.name);
-    const newData = {};
-    playerNames.forEach(n => newData[n] = opponents.map(()=>0));
-    setGoalValueData(newData);
-    setGoalValueBottom(opponents.map(()=>0));
-    renderGoalValuePage();
-    alert("Goal Value zurückgezet.");
-  }
-
-  // --- Final init and restore state on load ---
-  seasonData = JSON.parse(localStorage.getItem("seasonData")) || seasonData || {};
-
-  renderPlayerSelection();
-
-  const lastPage = localStorage.getItem("currentPage") || (selectedPlayers.length ? "stats" : "selection");
-  if (lastPage === "stats") {
-    showPageRef("stats");
-    renderStatsTable();
-    updateIceTimeColors();
-  } else if (lastPage === "season") {
-    showPageRef("season");
-    renderSeasonTable();
-  } else if (lastPage === "seasonMap") {
-    showPageRef("seasonMap");
-    renderSeasonMapPage();
-  } else if (lastPage === "goalValue") {
-    showPageRef("goalValue");
-    renderGoalValuePage();
-  } else {
-    showPageRef("selection");
-  }
-
-  // initial timer display
-  updateTimerDisplay();
-
-  // Save to localStorage on unload
-  window.addEventListener("beforeunload", () => {
-    try {
-      localStorage.setItem("statsData", JSON.stringify(statsData));
-      localStorage.setItem("selectedPlayers", JSON.stringify(selectedPlayers));
-      localStorage.setItem("playerTimes", JSON.stringify(playerTimes));
-      localStorage.setItem("timerSeconds", String(timerSeconds));
-      localStorage.setItem("seasonData", JSON.stringify(seasonData));
-      localStorage.setItem("goalValueOpponents", JSON.stringify(getGoalValueOpponents()));
-      localStorage.setItem("goalValueData", JSON.stringify(getGoalValueData()));
-      localStorage.setItem("goalValueBottom", JSON.stringify(getGoalValueBottom()));
-    } catch (e) {
-      // ignore
-    }
-  });
-});
+    bottomLabel
