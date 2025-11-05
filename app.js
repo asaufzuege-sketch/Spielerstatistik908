@@ -86,7 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const seasonMapBoxesSelector = "#seasonMapPage .field-box, #seasonMapPage .goal-img-box";
 
   const torbildTimeTrackingBox = document.getElementById("timeTrackingBox");
-  const seasonMapTimeTrackingBox = document.getElementById("seasonTimeTrackingBox");
+  const seasonMapTimeTrackingBox = document.getElementById("seasonMapTimeTrackingBox");
 
   const goalValueContainer = document.getElementById("goalValueContainer");
   const resetGoalValueBtn = document.getElementById("resetGoalValueBtn");
@@ -1897,7 +1897,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function setGoalValueOpponents(arr) { localStorage.setItem("goalValueOpponents", JSON.stringify(arr)); }
   function getGoalValueData() {
     try {
-      const raw = localStorage.getItem("goalValueData");
+     	const raw = localStorage.getItem("goalValueData");
       if (raw) return JSON.parse(raw);
     } catch (e) {}
     return {};
