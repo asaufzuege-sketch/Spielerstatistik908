@@ -2,12 +2,13 @@
   /* Grundfarben Light Mode */
   --bg-color: #ffffff;
   --text-color: #000000;
-  --header-bg: #1E1E1E; /* geändert: Titel-/Totalzeilenfarbe */
+  --header-bg: #1E1E1E;
   --row-even: #f0f0f0;
   --row-odd: #e0e0e0;
 
-  /* Seiten-Titelfarbe (gewünscht) */
-  --page-title-color: #66A895;
+  /* Seiten-Titelfarben / Gradient */
+  --page-title-start: #7dceb6; /* oben links */
+  --page-title-end: #66a895;   /* unten rechts */
 
   /* Tabellenfarben */
   --cell-pos-color: #00c06f;
@@ -27,11 +28,12 @@
   --ice-top: #00c06f;
   --ice-bottom: #ff4c4c;
 }
+
 /* Dark Mode */
 [data-theme="dark"] {
   --bg-color: #111111;
   --text-color: #ffffff;
-  --header-bg: #1E1E1E; /* gleiche Header-Farbe im Dark-Mode */
+  --header-bg: #1E1E1E;
   --row-even: #333333;
   --row-odd: #4a4a4a;
 
@@ -40,6 +42,7 @@
   --cell-zero-color: #ffffff;
   --timer-left-bg: #3b3b3b;
 }
+
 body {
   margin: 0;
   font-family: "Segoe UI", sans-serif;
@@ -65,24 +68,30 @@ body {
 }
 
 /* =========================================
-   TYPOGRAFIE
+   TYPOGRAFIE / TITEL
    ========================================= */
-/* Seiten-Titel: alle groß (uppercase) und einheitliche Farbe */
+/* Seiten-Titel: gradient text, uppercase */
 h1 {
   text-align: center;
-  color: var(--page-title-color); /* neue einheitliche Titel-Farbe */
   margin: 0 0 12px 0;
-  text-transform: uppercase; /* alles groß */
+  text-transform: uppercase;
+  font-weight: 700;
+  /* gradient text using background-clip */
+  background: linear-gradient(135deg, var(--page-title-start) 0%, var(--page-title-end) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* fallback color in case gradient-text is not supported */
+  /* color: var(--page-title-end); */
 }
 
-/* Apply Astroz font & 30% larger than the previous baseline */
+/* Larger title appearance for specific pages */
 #goalValuePage h1,
 #seasonPage h1,
 #seasonMapPage h1,
 #playerSelectionPage h1 {
   font-family: "Astroz", "Segoe UI", sans-serif;
-  font-size: 1.69em; /* larger relative to baseline */
-  font-weight: 700;
+  font-size: 1.69em;
   margin: 0 0 12px 0;
 }
 
@@ -118,7 +127,7 @@ h1 {
   color: #fff;
 }
 
-/* Checkbox-Farbe (nur auf Auswahlseite) */
+/* Checkbox-Farbe on selection page */
 #playerSelectionPage input[type="checkbox"] {
   width: 18px;
   height: 18px;
@@ -141,27 +150,23 @@ h1 {
   flex: 1;
 }
 
-/* Confirm button - match top-button height and not bold (Reset is only bold button)
-   auf Auswahlseite neu: Hintergrund #E3FBA7, Text schwarz */
+/* Confirm button on selection page (new color) */
 #playerSelectionPage .confirm-btn {
   display: block;
   margin: 20px auto;
   padding: 8px 14px;
-  background: #e3fba7; /* neue Farbe */
+  background: #e3fba7;
   border: none;
   border-radius: 8px;
   font-size: 0.95rem;
   cursor: pointer;
-  color: #000; /* schwarzer Text für Kontrast */
-  font-weight: 400; /* not bold */
-  height: 40px; /* same height as top-bar buttons */
+  color: #000;
+  font-weight: 400;
+  height: 40px;
   line-height: 24px;
   transition: background 0.2s;
 }
-
-#playerSelectionPage .confirm-btn:hover {
-  filter: brightness(0.98);
-}
+#playerSelectionPage .confirm-btn:hover { filter: brightness(0.98); }
 
 /* =========================================
    TOP BAR / BUTTONS
@@ -184,112 +189,73 @@ h1 {
   cursor: pointer;
   font-size: 0.95rem;
   transition: background 0.2s;
-  height: 40px;               /* uniform height */
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 400;           /* not bold */
+  font-weight: 400;
   box-sizing: border-box;
 }
+.top-btn:hover { background: #3b3b3b; }
 
-.top-btn:hover {
-  background: #3b3b3b;
-}
-
-/* special lighter timer on the left */
+/* special lighter timer on the left - increase font size and bold */
 .top-btn.timer-left {
   background: var(--timer-left-bg);
 }
-.top-btn.timer-left:hover {
-  background: #4e4e4e;
+.timer {
+  font-size: 1.25rem;    /* larger */
+  font-weight: 700;      /* bold */
+  padding: 10px 16px;
+  transition: background-color 0.25s;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
+.timer.running { background: var(--cell-pos-color); }
+.timer.stopped { background: #b00020; }
+.timer.reset { background: var(--timer-left-bg); }
 
-/* Export CSV button: UPDATED to #46798e */
+/* Export CSV button */
 .top-btn.export-csv {
   background: #46798e;
   color: #fff;
 }
-.top-btn.export-csv:hover {
-  filter: brightness(0.95);
-}
+.top-btn.export-csv:hover { filter: brightness(0.95); }
 
-/* NEW: Season and Season Map highlight color #44bb91 */
+/* Season highlight */
 .top-btn.season-highlight {
   background: #44bb91;
   color: #fff;
 }
-.top-btn.season-highlight:hover {
-  filter: brightness(0.95);
-}
+.top-btn.season-highlight:hover { filter: brightness(0.95); }
 
-/* NEW: Export Season and Export Season Map buttons color #e3fba7 (light) */
+/* Export Season buttons color */
 .top-btn.export-season {
   background: #e3fba7;
   color: #000;
 }
-.top-btn.export-season:hover {
-  filter: brightness(0.95);
-}
+.top-btn.export-season:hover { filter: brightness(0.95); }
 
-/* Import CSV button (created dynamically in JS) - now same base .top-btn and specialized color */
+/* Import CSV button (dynamically created) - ensure it matches top-btn sizing */
 .import-csv-btn {
-  background: #010741; /* import CSV requested color */
+  /* it is created with class "top-btn import-csv-btn", so sizing is inherited from .top-btn */
+  background: #010741;
   color: #fff;
-  /* sizing is inherited from .top-btn when element has both classes */
 }
 
 /* Danger / reset buttons - Reset remains bold */
-.danger-btn {
-  background: #8b0000;
-  color: #fff;
-}
-.danger-btn:hover {
-  background: #a30000;
-}
-
-/* Ensure reset buttons are bold (the only bold buttons) */
-.reset-btn {
-  font-weight: 700;
-}
-
-/* =========================================
-   TIMER BUTTON
-   ========================================= */
-.timer {
-  font-size: 1.1rem;
-  padding: 10px 16px;
-  transition: background-color 0.25s;
-  height: 40px; /* match other top buttons */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.timer.running {
-  background: var(--cell-pos-color);
-}
-.timer.stopped {
-  background: #b00020;
-}
-.timer.reset {
-  background: var(--timer-left-bg);
-}
+.danger-btn { background: #8b0000; color: #fff; }
+.danger-btn:hover { background: #a30000; }
+.reset-btn { font-weight: 700; }
 
 /* =========================================
    STATISTIK-TABELLE
    ========================================= */
-/* Remove scrolling bar for datenerfassung (stats) table container as requested */
-#statsScrollContainer {
-  max-height: none; /* removed fixed height */
-  overflow-y: visible; /* no scrollbar */
-}
+#statsScrollContainer { max-height: none; overflow-y: visible; }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95rem;
-}
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
 
-/* thead uses header variable to ensure consistent color */
 thead th {
   background: var(--header-bg);
   position: sticky;
@@ -299,11 +265,7 @@ thead th {
   border-bottom: 2px solid #333;
   text-align: center;
 }
-
-thead th:nth-child(2) {
-  text-align: left;
-  padding-left: 12px;
-}
+thead th:nth-child(2) { text-align: left; padding-left: 12px; }
 
 th, td {
   padding: 8px 6px;
@@ -315,30 +277,17 @@ th, td {
 .even-row { background-color: var(--row-even); }
 .odd-row  { background-color: var(--row-odd); }
 
-td[data-player] {
-  cursor: pointer;
-  transition: transform 0.08s, background 0.08s;
-}
-td[data-player]:active {
-  transform: scale(1.12);
-  background: #222;
-}
+td[data-player] { cursor: pointer; transition: transform 0.08s, background 0.08s; }
+td[data-player]:active { transform: scale(1.12); background: #222; }
 
-/* Time button disabled/read-only appearance */
-.time-btn[disabled],
-.time-btn.disabled-readonly {
-  opacity: 0.7;
-  cursor: default;
-  pointer-events: none;
-  filter: brightness(0.95);
-}
+/* Time button read-only appearance */
+.time-btn[disabled], .time-btn.disabled-readonly { opacity: 0.7; cursor: default; pointer-events: none; filter: brightness(0.95); }
 
-/* Sortier-Pfeil Styling */
 th.sortable { user-select: none; }
 th .sort-arrow { font-size: 0.7rem; color: #ddd }
 
 /* =========================================
-   TORBILD / GOAL MAP SEITE
+   TORBILD / GOAL MAP
    ========================================= */
 .torbild-layout {
   display: flex;
@@ -348,15 +297,8 @@ th .sort-arrow { font-size: 0.7rem; color: #ddd }
   height: calc(100vh - 120px);
   margin-top: 20px;
 }
-
-.field-column {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
-.field-box,
-.img-box {
+.field-column { flex: 1; display: flex; justify-content: center; }
+.field-box, .img-box {
   background: #1e1e1e;
   border: 2px solid #333;
   border-radius: 10px;
@@ -367,23 +309,9 @@ th .sort-arrow { font-size: 0.7rem; color: #ddd }
   justify-content: center;
   position: relative;
 }
+.field-box img, .img-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
+.goal-column { flex: 1; display: flex; flex-direction: column; gap: 15px; }
 
-.field-box img,
-.img-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 8px;
-}
-
-.goal-column {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-/* marker dots */
 .marker-dot {
   position: absolute;
   width: 14px;
@@ -411,7 +339,6 @@ th .sort-arrow { font-size: 0.7rem; color: #ddd }
   height: 100%;
   gap: 10px;
 }
-
 .period {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -425,19 +352,10 @@ th .sort-arrow { font-size: 0.7rem; color: #ddd }
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: 8px;
 }
-.period-title {
-  grid-column: 1 / -1;
-  font-weight: bold;
-  text-align: center;
-  margin-bottom: 4px;
-  font-size: 0.85rem;
-}
-.period-buttons.top-row,
-.period-buttons.bottom-row,
-.period-numbers { display: contents; }
+.period-title { grid-column: 1 / -1; font-weight: bold; text-align: center; margin-bottom: 4px; font-size: 0.85rem; }
+.period-buttons.top-row, .period-buttons.bottom-row, .period-numbers { display: contents; }
 .period-numbers span { color: #ccc; font-size: 0.8rem; line-height:1; }
 
-/* Buttons */
 .time-btn {
   width: 100%;
   height: 20px;
@@ -462,10 +380,8 @@ th .sort-arrow { font-size: 0.7rem; color: #ddd }
 #seasonPage thead th { background: var(--header-bg); position: sticky; top: 0; z-index: 40; padding: 8px 6px; border-bottom: 2px solid #333; text-align:center; }
 #seasonPage tr:nth-child(even) { background-color: var(--row-even); }
 #seasonPage tr:nth-child(odd) { background-color: var(--row-odd); }
-/* ensure total row uses header color */
 #seasonPage .total-row td { background: var(--header-bg) !important; color: var(--text-color) !important; font-weight:700 !important; border-top:2px solid #333; }
 
-/* Goal Value input styling */
 .goalvalue-title-input {
   background: transparent;
   border: 1px solid rgba(255,255,255,0.08);
@@ -475,7 +391,7 @@ th .sort-arrow { font-size: 0.7rem; color: #ddd }
   text-align: center;
 }
 
-/* small responsive */
+/* responsive */
 @media (max-width: 900px) {
   .torbild-layout { flex-direction: column; height: auto; }
   .goalvalue-title-input { font-size: 0.85rem; }
