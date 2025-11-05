@@ -1,7 +1,9 @@
 // app.js
-// Anpassung: "Header" Elemente entfernt. Buttons bleiben als per-seite Top-Bar,
-// zentriert über ihren Inhalten (Tabellen / Bilder). Alle Funktionen der Buttons bleiben erhalten.
-// Alte Header-Align-/Resize-Logik wurde durch No-Ops ersetzt, damit keine Verschiebungen stattfinden.
+// Anpassung: Export/Import-CSV Verhalten und Button-Farben
+// - Export (Game Data): exportiert jetzt auch die Totalzeile und den Timer-Wert.
+// - Export (Season): exportiert jetzt die Totalzeile.
+// - Import (Season): übernimmt Excel/CSV 1:1 in die Season-Tabelle, setzt 'games' auf 0.
+// - Saison-Export-Button auf Season-Seite verwendet dieselbe Farbe wie Export CSV auf Game Data.
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- Elements (buttons remain in DOM per page) ---
@@ -15,27 +17,8 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // NOTE: header elements were removed. Alignment functions are kept as no-ops
-  // so the rest of the code can still call them without side-effects.
-  function alignHeaderToTarget(targetEl) {
-    // No-op: buttons are placed in each page directly and styled via CSS to be centered.
-    return;
-  }
-  function alignHeaderToRange(leftEl, rightEl) {
-    // No-op
-    return;
-  }
-
-  // Map of which element to align header to per page (legacy single-target, unused now)
-  function headerTargetForPage(page) {
-    if (!page) return null;
-    if (page === "stats") return document.getElementById("statsContainer");
-    if (page === "season") return document.getElementById("seasonContainer");
-    if (page === "seasonMap") return document.getElementById("seasonMapPage");
-    if (page === "torbild") return document.getElementById("torbildPage");
-    if (page === "goalValue") return document.getElementById("goalValueContainer");
-    if (page === "selection") return document.getElementById("playerSelectionPage");
-    return null;
-  }
+  function alignHeaderToTarget(targetEl) { return; }
+  function alignHeaderToRange(leftEl, rightEl) { return; }
 
   function showPage(page) {
     try {
@@ -51,8 +34,6 @@ document.addEventListener("DOMContentLoaded", () => {
       else if (page === "season") title = "Season";
       else if (page === "seasonMap") title = "Season Map";
       document.title = title;
-
-      // No header to align; but ensure per-page render calls happen where needed
     } catch (err) {
       console.warn("showPage failed:", err);
     }
@@ -69,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const backFromGoalValueBtn = document.getElementById("backFromGoalValueBtn");
   const timerBtn = document.getElementById("timerBtn");
   const selectPlayersBtn = document.getElementById("selectPlayersBtn");
-  const exportBtn = document.getElementById("exportBtn");
+  const exportBtn = document.getElementById("exportBtn"); // Game Data export
   const resetBtn = document.getElementById("resetBtn");
   const seasonBtn = document.getElementById("seasonBtn");
   const seasonMapBtn = document.getElementById("seasonMapBtn");
@@ -78,15 +59,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const seasonContainer = document.getElementById("seasonContainer");
   const statsScrollContainer = document.getElementById("statsScrollContainer");
 
-  const exportSeasonFromStatsBtn = document.getElementById("exportSeasonFromStatsBtn");
+  const exportSeasonFromStatsBtn = document.getElementById("exportSeasonFromStatsBtn"); // export from stats into season (accumulate)
   const exportSeasonMapBtn = document.getElementById("exportSeasonMapBtn");
-  const exportSeasonBtn = document.getElementById("exportSeasonBtn");
+  const exportSeasonBtn = document.getElementById("exportSeasonBtn"); // export CSV on season page
 
   const torbildBoxesSelector = "#torbildPage .field-box, #torbildPage .goal-img-box";
   const seasonMapBoxesSelector = "#seasonMapPage .field-box, #seasonMapPage .goal-img-box";
 
   const torbildTimeTrackingBox = document.getElementById("timeTrackingBox");
-  const seasonMapTimeTrackingBox = document.getElementById("seasonMapTimeTrackingBox");
+  const seasonMapTimeTrackingBox = document.getElementById("seasonTimeTrackingBox");
 
   const goalValueContainer = document.getElementById("goalValueContainer");
   const resetGoalValueBtn = document.getElementById("resetGoalValueBtn");
@@ -155,7 +136,6 @@ document.addEventListener("DOMContentLoaded", () => {
           if (p.num !== "" && p.num !== null && p.num !== undefined && String(p.num).trim() !== "") {
             numAreaHtml = `<div class="num" style="flex:0 0 48px;text-align:center;"><strong>${escapeHtml(p.num)}</strong></div>`;
           } else {
-            // allow entering number for players without fixed number
             numAreaHtml = `<div style="flex:0 0 64px;text-align:center;"><input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px;border-radius:6px;border:1px solid #444;background:var(--row-even);color:var(--text-color);"></div>`;
           }
         } else {
@@ -186,8 +166,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </label>`;
       playerListContainer.appendChild(li);
     }
-
-    // No global header element to align — buttons are per page in HTML
   }
 
   // --- Confirm selection handler ---
@@ -267,35 +245,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Create Import CSV buttons and apply explicit colors per previous requests ---
   (function setupButtonsAndImports() {
-    const colorExportSeason = "#e3fba7";
-    const colorExportSeasonMap = "#e3fba7";
-    const colorSeason = "#44bb91";
-    const colorSeasonMap = "#44bb91";
     const colorExportCSV = "#46798e";
     const colorImportCSV = "#010741";
 
-    if (exportSeasonBtn) {
-      exportSeasonBtn.style.backgroundColor = colorExportSeason;
-      exportSeasonBtn.style.color = "#000";
-    }
-    if (exportSeasonMapBtn) {
-      exportSeasonMapBtn.style.backgroundColor = colorExportSeasonMap;
-      exportSeasonMapBtn.style.color = "#000";
-    }
-    if (seasonBtn) {
-      seasonBtn.style.backgroundColor = colorSeason;
-      seasonBtn.style.color = "#fff";
-    }
-    if (seasonMapBtn) {
-      seasonMapBtn.style.backgroundColor = colorSeasonMap;
-      seasonMapBtn.style.color = "#fff";
-    }
+    // Make export button on Game Data use colorExportCSV (done in CSS) but ensure season export button also uses same bg
     if (exportBtn) {
       exportBtn.style.backgroundColor = colorExportCSV;
       exportBtn.style.color = "#fff";
     }
+    if (exportSeasonBtn) {
+      // ensure Season export button gets same export CSV color
+      exportSeasonBtn.style.backgroundColor = colorExportCSV;
+      exportSeasonBtn.style.color = "#fff";
+    }
     if (exportSeasonFromStatsBtn) {
-      exportSeasonFromStatsBtn.style.backgroundColor = colorExportSeason;
+      // the "Export Season" (from stats) remains the light confirm color for visibility; keep earlier choice
+      exportSeasonFromStatsBtn.style.backgroundColor = "#e3fba7";
       exportSeasonFromStatsBtn.style.color = "#000";
     }
 
@@ -336,6 +301,7 @@ document.addEventListener("DOMContentLoaded", () => {
       reader.readAsText(file, "utf-8");
     });
 
+    // Import button for Game Data (placed next to export)
     if (exportBtn && resetBtn) {
       const importStatsBtn = createImportButton("importCsvStatsBtn", "Import CSV", exportBtn, resetBtn, null);
       importStatsBtn.title = "Importiere CSV (gleiches Format wie Export)";
@@ -345,9 +311,10 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
+    // Import button for Season page (placed next to exportSeasonBtn)
     if (exportSeasonBtn) {
       const importSeasonBtn = createImportButton("importCsvSeasonBtn", "Import CSV", exportSeasonBtn, null, exportSeasonBtn);
-      importSeasonBtn.title = "Importiere Season CSV";
+      importSeasonBtn.title = "Importiere Season CSV 1:1 (wird als 0 Spiele übernommen)";
       importSeasonBtn.addEventListener("click", () => {
         csvFileInput.dataset.target = "season";
         csvFileInput.click();
@@ -365,7 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function parseTimeToSeconds(str) {
     if (!str) return 0;
-    const m = str.split(":");
+    const m = String(str).split(":");
     if (m.length >= 2) {
       const mm = Number(m[0]) || 0;
       const ss = Number(m[1]) || 0;
@@ -374,7 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return Number(str) || 0;
   }
 
-  // Import: Stats CSV (expects export format: ["Spieler", ...categories, "Time"])
+  // Import: Stats CSV (expects export format: ["Nr","Spieler", ...categories, "Time"])
   function importStatsCSVFromText(txt) {
     try {
       const lines = splitCsvLines(txt);
@@ -411,61 +378,54 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Import: Season CSV (expects the exportSeason header used in app)
+  // Import: Season CSV (expects a CSV exported with season headers)
+  // Modified: import 1:1 into seasonData (take values from CSV), but set games = 0
   function importSeasonCSVFromText(txt) {
     try {
       const lines = splitCsvLines(txt);
       if (lines.length === 0) { alert("Leere CSV"); return; }
       const header = parseCsvLine(lines[0]);
-      const idxSpieler = header.findIndex(h => /spieler/i.test(h));
-      const idxNum = header.findIndex(h => /^nr$/i.test(h) || /^nr\./i.test(h));
-      const idxGames = header.findIndex(h => /^games$/i.test(h));
-      const idxGoals = header.findIndex(h => /^goals$/i.test(h));
-      const idxAssists = header.findIndex(h => /^assists$/i.test(h));
-      const idxPlusMinus = header.findIndex(h => /^\+\/-$/i.test(h) || /-\//i.test(h));
-      const idxShots = header.findIndex(h => /^shots$/i.test(h));
-      const idxPenalty = header.findIndex(h => /^penalty$/i.test(h) || /^penaltys$/i.test(h));
-      const idxFaceOffs = header.findIndex(h => /^faceoffs$/i.test(h));
-      const idxFaceOffsWon = header.findIndex(h => /^faceoffs won$/i.test(h) || /^faceoffswon$/i.test(h));
-      const idxGoalValue = header.findIndex(h => /goal value/i.test(h));
+
+      const idxNr = header.findIndex(h => /^nr$/i.test(h) || /^nr\./i.test(h) || /^nr$/i.test(h) || /nr/i.test(h));
+      const idxSpieler = header.findIndex(h => /spieler/i.test(h) || /player/i.test(h));
+      const idxGames = header.findIndex(h => /^games$/i.test(h) || /games/i.test(h));
+      const idxGoals = header.findIndex(h => /^goals$/i.test(h) || /goals/i.test(h));
+      const idxAssists = header.findIndex(h => /^assists$/i.test(h) || /assists/i.test(h));
+      const idxPlusMinus = header.findIndex(h => /^\+\/-$/i.test(h) || /plus-?minus/i.test(h) || /\+\/-/i.test(h));
+      const idxShots = header.findIndex(h => /^shots$/i.test(h) || /shots/i.test(h));
+      const idxPenalty = header.findIndex(h => /^penalty$/i.test(h) || /^penaltys$/i.test(h) || /penalty/i.test(h));
+      const idxFaceOffs = header.findIndex(h => /^faceoffs$/i.test(h) || /faceoffs/i.test(h));
+      const idxFaceOffsWon = header.findIndex(h => /^faceoffs won$/i.test(h) || /^faceoffswon$/i.test(h) || /faceoffs won/i.test(h));
+      const idxGoalValue = header.findIndex(h => /goal value/i.test(h) || /gv/i.test(h));
       const idxTime = header.findIndex(h => /time/i.test(h) || /zeit/i.test(h));
 
       for (let i = 1; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
-        const name = cols[idxSpieler] || "";
+        const name = (idxSpieler !== -1) ? (cols[idxSpieler] || "").trim() : "";
         if (!name) continue;
-        if (!seasonData[name]) {
-          seasonData[name] = {
-            num: cols[idxNum] || "",
-            name: name,
-            games: 0,
-            goals: 0,
-            assists: 0,
-            plusMinus: 0,
-            shots: 0,
-            penaltys: 0,
-            faceOffs: 0,
-            faceOffsWon: 0,
-            timeSeconds: 0,
-            goalValue: 0
-          };
-        }
-        if (idxGames !== -1) seasonData[name].games = Number(cols[idxGames] || 0) || 0;
-        if (idxGoals !== -1) seasonData[name].goals = Number(cols[idxGoals] || 0) || 0;
-        if (idxAssists !== -1) seasonData[name].assists = Number(cols[idxAssists] || 0) || 0;
-        if (idxPlusMinus !== -1) seasonData[name].plusMinus = Number(cols[idxPlusMinus] || 0) || 0;
-        if (idxShots !== -1) seasonData[name].shots = Number(cols[idxShots] || 0) || 0;
-        if (idxPenalty !== -1) seasonData[name].penaltys = Number(cols[idxPenalty] || 0) || 0;
-        if (idxFaceOffs !== -1) seasonData[name].faceOffs = Number(cols[idxFaceOffs] || 0) || 0;
-        if (idxFaceOffsWon !== -1) seasonData[name].faceOffsWon = Number(cols[idxFaceOffsWon] || 0) || 0;
-        if (idxGoalValue !== -1) seasonData[name].goalValue = Number(cols[idxGoalValue] || 0) || 0;
-        if (idxTime !== -1) seasonData[name].timeSeconds = parseTimeToSeconds(cols[idxTime]);
-        if (idxNum !== -1) seasonData[name].num = cols[idxNum] || seasonData[name].num || "";
+
+        // create or overwrite entry by taking CSV values 1:1
+        const entry = {
+          num: (idxNr !== -1) ? (cols[idxNr] || "") : (seasonData[name]?.num || ""),
+          name: name,
+          games: 0, // explicitly set to 0 as requested (imported rows are "0 games")
+          goals: (idxGoals !== -1) ? (Number(cols[idxGoals] || 0) || 0) : (seasonData[name]?.goals || 0),
+          assists: (idxAssists !== -1) ? (Number(cols[idxAssists] || 0) || 0) : (seasonData[name]?.assists || 0),
+          plusMinus: (idxPlusMinus !== -1) ? (Number(cols[idxPlusMinus] || 0) || 0) : (seasonData[name]?.plusMinus || 0),
+          shots: (idxShots !== -1) ? (Number(cols[idxShots] || 0) || 0) : (seasonData[name]?.shots || 0),
+          penaltys: (idxPenalty !== -1) ? (Number(cols[idxPenalty] || 0) || 0) : (seasonData[name]?.penaltys || 0),
+          faceOffs: (idxFaceOffs !== -1) ? (Number(cols[idxFaceOffs] || 0) || 0) : (seasonData[name]?.faceOffs || 0),
+          faceOffsWon: (idxFaceOffsWon !== -1) ? (Number(cols[idxFaceOffsWon] || 0) || 0) : (seasonData[name]?.faceOffsWon || 0),
+          timeSeconds: (idxTime !== -1) ? parseTimeToSeconds(cols[idxTime]) : (seasonData[name]?.timeSeconds || 0),
+          goalValue: (idxGoalValue !== -1) ? (Number(cols[idxGoalValue] || 0) || 0) : (seasonData[name]?.goalValue || 0)
+        };
+
+        seasonData[name] = entry;
       }
 
       localStorage.setItem("seasonData", JSON.stringify(seasonData));
       renderSeasonTable();
-      alert("Season-CSV importiert.");
+      alert("Season-CSV importiert (Werte übernommen, 'games' auf 0 gesetzt).");
     } catch (e) {
       console.error("Import Season CSV failed:", e);
       alert("Fehler beim Importieren der Season-CSV (siehe Konsole).");
@@ -874,7 +834,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderSeasonMapPage();
   }
 
-  // --- NEW: renderGoalAreaStats() (unchanged visual behavior, opacity previously set) ---  
+  // --- renderGoalAreaStats (unchanged) ---
   function renderGoalAreaStats() {
     const seasonMapRoot = document.getElementById("seasonMapPage");
     if (!seasonMapRoot) return;
@@ -1017,8 +977,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // render overlays
     renderGoalAreaStats();
-
-    // No header alignment necessary
   }
 
   function resetSeasonMap() {
@@ -1041,10 +999,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (torbildBtn) {
     torbildBtn.addEventListener("click", () => {
       showPage("torbild");
-      // small delay to let layout settle if needed (markers and interactions are independent)
-      setTimeout(() => {
-        // nothing to align; top-bar is part of page HTML
-      }, 60);
+      setTimeout(() => {}, 60);
     });
   }
   if (seasonMapBtn) {
@@ -1056,7 +1011,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (backToStatsFromSeasonMapBtn) backToStatsFromSeasonMapBtn.addEventListener("click", () => showPage("stats"));
   if (document.getElementById("resetSeasonMapBtn")) document.getElementById("resetSeasonMapBtn").addEventListener("click", resetSeasonMap);
 
-  // --- Season export (Stats -> Season) ---
+  // --- Season export (Stats -> Season) (accumulate one game) ---
   const exportSeasonHandler = () => {
     if (!selectedPlayers || selectedPlayers.length === 0) {
       alert("Keine Spieler ausgewählt, nichts zu exportieren.");
@@ -1135,7 +1090,7 @@ document.addEventListener("DOMContentLoaded", () => {
     exportSeasonFromStatsBtn.addEventListener("click", exportSeasonHandler);
   }
 
-  // --- NEW: export current game data (stats) to CSV (fix for export button on Game Data page) ---
+  // --- Export current game data (stats) to CSV: include totals row + timer ---
   function formatTimeMMSS(sec) {
     const mm = String(Math.floor(sec / 60)).padStart(2, "0");
     const ss = String(sec % 60).padStart(2, "0");
@@ -1151,6 +1106,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const header = ["Nr", "Spieler", ...categories, "Time"];
       const rows = [header];
 
+      // player rows
       selectedPlayers.forEach(p => {
         const name = p.name;
         const row = [];
@@ -1162,6 +1118,46 @@ document.addEventListener("DOMContentLoaded", () => {
         row.push(formatTimeMMSS(Number(playerTimes[name] || 0)));
         rows.push(row);
       });
+
+      // compute totals (same logic as updateTotals)
+      const totals = {};
+      categories.forEach(c => totals[c] = 0);
+      let totalSeconds = 0;
+      selectedPlayers.forEach(p => {
+        categories.forEach(c => { totals[c] += (Number(statsData[p.name]?.[c]) || 0); });
+        totalSeconds += (playerTimes[p.name] || 0);
+      });
+
+      const totalRow = new Array(header.length).fill("");
+      totalRow[1] = `Total (${selectedPlayers.length})`;
+      categories.forEach((c, idx) => {
+        const colIndex = 2 + idx;
+        if (c === "+/-") {
+          // average +/- for players
+          const vals = selectedPlayers.map(p => Number(statsData[p.name]?.[c] || 0));
+          const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+          totalRow[colIndex] = `Ø ${avg}`;
+        } else if (c === "FaceOffs Won") {
+          // represent as "won (pct%)"
+          const totalFace = totals["FaceOffs"] || 0;
+          const percent = totalFace ? Math.round((totals["FaceOffs Won"]/totalFace)*100) : 0;
+          totalRow[colIndex] = `${totals["FaceOffs Won"]} (${percent}%)`;
+        } else if (c === "Shot") {
+          // own vs opp - we can't know opp here; just show total shots
+          totalRow[colIndex] = String(totals[c] || 0);
+        } else {
+          totalRow[colIndex] = String(totals[c] || 0);
+        }
+      });
+      // Time column index
+      totalRow[header.length - 1] = formatTimeMMSS(totalSeconds);
+      rows.push(totalRow);
+
+      // additional row with timer button value
+      const timerRow = new Array(header.length).fill("");
+      timerRow[1] = "TIMER";
+      timerRow[header.length - 1] = formatTimeMMSS(timerSeconds || 0);
+      rows.push(timerRow);
 
       const csv = rows.map(r => r.join(";")).join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
@@ -1361,6 +1357,7 @@ document.addEventListener("DOMContentLoaded", () => {
       th.style.padding = "8px";
     });
 
+    // compute and append total/average row (same as render logic used elsewhere)
     if (count > 0) {
       const sums = {
         games: 0, goals: 0, assists: 0, points: 0, plusMinus: 0,
@@ -1392,16 +1389,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const avgFaceOffPercent = avgFaceOffs ? Math.round((avgFaceOffsWon / avgFaceOffs) * 100) : 0;
       const avgTimeSeconds = Math.round(sums.timeSeconds / count);
 
-      const perPlayerShotsPerGame = rows.map(r => { const g=r.raw.games||0; return g ? (r.raw.shots/g):0; });
-      const perPlayerGoalsPerGame = rows.map(r => { const g=r.raw.games||0; return g ? (r.raw.goals/g):0; });
-      const perPlayerPointsPerGame = rows.map(r => { const g=r.raw.games||0; return g ? (r.raw.points/g):0; });
-      const perPlayerAvgPlusMinus = rows.map(r => { const g=r.raw.games||0; return g ? (r.raw.plusMinus/g):0; });
-
-      const avgShotsPerGame = perPlayerShotsPerGame.reduce((a,b)=>a+b,0)/count;
-      const avgGoalsPerGame = perPlayerGoalsPerGame.reduce((a,b)=>a+b,0)/count;
-      const avgPointsPerGame = perPlayerPointsPerGame.reduce((a,b)=>a+b,0)/count;
-      const avgAvgPlusMinus = perPlayerAvgPlusMinus.reduce((a,b)=>a+b,0)/count;
-
       const totalCells = [
         "", "", "", "Total Ø",
         Number((avgGames).toFixed(1)),
@@ -1409,13 +1396,13 @@ document.addEventListener("DOMContentLoaded", () => {
         Number((avgAssists).toFixed(1)),
         Number((avgPoints).toFixed(1)),
         Number((avgPlusMinus).toFixed(1)),
-        Number((avgAvgPlusMinus).toFixed(1)),
+        Number((avgPlusMinus).toFixed(1)),
         Number((avgShots).toFixed(1)),
-        Number((avgShotsPerGame).toFixed(1)),
-        Number((avgGoalsPerGame).toFixed(1)),
-        Number((avgPointsPerGame).toFixed(1)),
+        Number((avgShots / (avgGames || 1)).toFixed(1)),
+        Number((avgGoals / (avgGames || 1)).toFixed(1)),
+        Number((avgPoints / (avgGames || 1)).toFixed(1)),
         Number((avgPenalty).toFixed(1)),
-        "", // Goal Value total aggregate is left empty here
+        "", // Goal Value total left empty
         Number((avgFaceOffs).toFixed(1)),
         Number((avgFaceOffsWon).toFixed(1)),
         `${avgFaceOffPercent}%`,
@@ -1453,8 +1440,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     table.appendChild(tbody);
     container.appendChild(table);
-
-    // No header alignment necessary
 
     function updateSortUI() {
       const ths = table.querySelectorAll("th.sortable");
@@ -1703,8 +1688,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateIceTimeColors();
     updateTotals();
-
-    // No global header to show/hide
   }
 
   // --- change value helper ---
@@ -1871,7 +1854,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (page === "season") renderSeasonTable();
       if (page === "goalValue") renderGoalValuePage();
       if (page === "seasonMap") renderSeasonMapPage();
-      // no header alignment necessary
     }, 60);
   }
   window.showPage = showPageFull;
@@ -1885,9 +1867,12 @@ document.addEventListener("DOMContentLoaded", () => {
   backFromGoalValueBtn?.addEventListener("click", () => showPageRef("stats"));
   resetGoalValueBtn?.addEventListener("click", resetGoalValuePage);
 
-  // Season CSV export in header (keeps old behavior)
+  // Season CSV export (on Season page) - extended: include total row
   document.getElementById("exportSeasonBtn")?.addEventListener("click", () => {
-    const rows = [["Nr","Spieler","Games","Goals","Assists","Points","+/-","Ø +/-","Shots","Shots/Game","Goals/Game","Points/Game","Penalty","Goal Value","FaceOffs","FaceOffs Won","FaceOffs %","Time"]];
+    const header = ["Nr","Spieler","Games","Goals","Assists","Points","+/-","Ø +/-","Shots","Shots/Game","Goals/Game","Points/Game","Penalty","Goal Value","FaceOffs","FaceOffs Won","FaceOffs %","Time"];
+    const rows = [header];
+
+    // build rows for each player using seasonData values (1:1)
     Object.keys(seasonData).forEach(name => {
       const d = seasonData[name];
       const games = Number(d.games || 0);
@@ -1914,6 +1899,60 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       rows.push([d.num || "", d.name, games, goals, assists, points, plusMinus, avgPlus, shots, shotsGame, goalsGame, pointsGame, penalty, gv, faceOffs, faceOffsWon, `${faceOffPercent}%`, timeStr]);
     });
+
+    // compute totals/averages for total row similar to renderSeasonTable
+    const keys = Object.keys(seasonData);
+    if (keys.length > 0) {
+      const sums = { games:0, goals:0, assists:0, points:0, plusMinus:0, shots:0, penalty:0, faceOffs:0, faceOffsWon:0, timeSeconds:0 };
+      keys.forEach(n => {
+        const d = seasonData[n];
+        sums.games += Number(d.games || 0);
+        sums.goals += Number(d.goals || 0);
+        sums.assists += Number(d.assists || 0);
+        sums.points += (Number(d.goals||0) + Number(d.assists||0));
+        sums.plusMinus += Number(d.plusMinus || 0);
+        sums.shots += Number(d.shots || 0);
+        sums.penalty += Number(d.penaltys || 0);
+        sums.faceOffs += Number(d.faceOffs || 0);
+        sums.faceOffsWon += Number(d.faceOffsWon || 0);
+        sums.timeSeconds += Number(d.timeSeconds || 0);
+      });
+
+      const count = keys.length;
+      const avgGames = sums.games / count;
+      const avgGoals = sums.goals / count;
+      const avgAssists = sums.assists / count;
+      const avgPoints = sums.points / count;
+      const avgPlusMinus = sums.plusMinus / count;
+      const avgShots = sums.shots / count;
+      const avgPenalty = sums.penalty / count;
+      const avgFaceOffs = sums.faceOffs / count;
+      const avgFaceOffsWon = sums.faceOffsWon / count;
+      const avgFaceOffPercent = avgFaceOffs ? Math.round((avgFaceOffsWon / avgFaceOffs) * 100) : 0;
+      const avgTimeSeconds = Math.round(sums.timeSeconds / count);
+
+      const totalRow = [
+        "", "Total Ø",
+        Number((avgGames).toFixed(1)),
+        Number((avgGoals).toFixed(1)),
+        Number((avgAssists).toFixed(1)),
+        Number((avgPoints).toFixed(1)),
+        Number((avgPlusMinus).toFixed(1)),
+        Number((avgPlusMinus).toFixed(1)),
+        Number((avgShots).toFixed(1)),
+        Number((avgShots / (avgGames || 1)).toFixed(1)),
+        Number((avgGoals / (avgGames || 1)).toFixed(1)),
+        Number((avgPoints / (avgGames || 1)).toFixed(1)),
+        Number((avgPenalty).toFixed(1)),
+        "", // goal value left empty
+        Number((avgFaceOffs).toFixed(1)),
+        Number((avgFaceOffsWon).toFixed(1)),
+        `${avgFaceOffPercent}%`,
+        formatTimeMMSS(avgTimeSeconds)
+      ];
+      rows.push(totalRow);
+    }
+
     const csv = rows.map(r => r.join(";")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
@@ -2173,8 +2212,6 @@ document.addEventListener("DOMContentLoaded", () => {
     tbody.appendChild(bottomRow);
     table.appendChild(tbody);
     goalValueContainer.appendChild(table);
-
-    // No header alignment necessary
   }
 
   function resetGoalValuePage() {
