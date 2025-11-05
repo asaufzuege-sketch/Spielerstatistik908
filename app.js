@@ -874,7 +874,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderSeasonMapPage();
   }
 
-  // --- NEW: renderGoalAreaStats() (unchanged visual behavior, opacity previously set) ---
+  // --- NEW: renderGoalAreaStats() (unchanged visual behavior, opacity previously set) ---  
   function renderGoalAreaStats() {
     const seasonMapRoot = document.getElementById("seasonMapPage");
     if (!seasonMapRoot) return;
@@ -1135,12 +1135,51 @@ document.addEventListener("DOMContentLoaded", () => {
     exportSeasonFromStatsBtn.addEventListener("click", exportSeasonHandler);
   }
 
-  // --- Season table rendering (full) with rounded corners and consistent header color ---
+  // --- NEW: export current game data (stats) to CSV (fix for export button on Game Data page) ---
   function formatTimeMMSS(sec) {
     const mm = String(Math.floor(sec / 60)).padStart(2, "0");
     const ss = String(sec % 60).padStart(2, "0");
     return `${mm}:${ss}`;
   }
+
+  function exportStatsCSV() {
+    try {
+      if (!selectedPlayers || selectedPlayers.length === 0) {
+        alert("Keine Spieler ausgewählt, nichts zu exportieren.");
+        return;
+      }
+      const header = ["Nr", "Spieler", ...categories, "Time"];
+      const rows = [header];
+
+      selectedPlayers.forEach(p => {
+        const name = p.name;
+        const row = [];
+        row.push(p.num || "");
+        row.push(name);
+        categories.forEach(cat => {
+          row.push(String(Number(statsData[name]?.[cat] || 0)));
+        });
+        row.push(formatTimeMMSS(Number(playerTimes[name] || 0)));
+        rows.push(row);
+      });
+
+      const csv = rows.map(r => r.join(";")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "stats.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      console.error("Export Stats CSV failed:", e);
+      alert("Fehler beim Exportieren (siehe Konsole).");
+    }
+  }
+
+  // Attach export handler to exportBtn (Game Data page)
+  document.getElementById("exportBtn")?.addEventListener("click", exportStatsCSV);
+
+  // --- Season table rendering (full) with rounded corners and consistent header color ---
   function parseForSort(val) {
     if (val === null || val === undefined) return "";
     const v = String(val).trim();
@@ -1897,7 +1936,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function setGoalValueOpponents(arr) { localStorage.setItem("goalValueOpponents", JSON.stringify(arr)); }
   function getGoalValueData() {
     try {
-     	const raw = localStorage.getItem("goalValueData");
+      const raw = localStorage.getItem("goalValueData");
       if (raw) return JSON.parse(raw);
     } catch (e) {}
     return {};
