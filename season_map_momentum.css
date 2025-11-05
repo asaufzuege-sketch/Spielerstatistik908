@@ -1,16 +1,15 @@
 /* season_map_momentum.css
-   Optional stylesheet to make the inserted container visually consistent.
-   Include in your index.html or your main CSS, or copy relevant rules into your style.css.
+   Optional stylesheet to style the inserted container and SVG.
+   Falls du bereits eine zentrale style.css verwendest, kannst du diese Regeln dort hinzufügen.
 */
 
 #seasonMapMomentumContainer {
   width: 100%;
-  max-width: 1000px;
+  max-width: 1100px;
   margin: 12px auto 0 auto;
   border-radius: 8px;
   background: transparent;
   box-sizing: border-box;
-  /* subtle padding to align with page */
   padding: 2px 6px 6px 6px;
 }
 
@@ -18,4 +17,15 @@
   display: block;
   width: 100%;
   height: auto;
+  user-select: none;
+}
+
+/* Optional: make the container visually match other top bars */
+#seasonMapMomentumContainer {
+  /* no heavy background so it blends with page */
+}
+
+/* Badge text inside circles: fallback if user agent doesn't center perfectly */
+#seasonMapMomentumContainer text {
+  dominant-baseline: middle;
 }
