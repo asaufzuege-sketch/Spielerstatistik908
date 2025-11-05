@@ -80,9 +80,8 @@ h1 {
   background: linear-gradient(135deg, var(--page-title-start) 0%, var(--page-title-end) 100%);
   -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent; /* ensure gradient shows on WebKit */
   color: transparent;
-  /* fallback color in case gradient-text is not supported */
-  /* color: var(--page-title-end); */
 }
 
 /* Larger title appearance for specific pages */
@@ -216,7 +215,7 @@ h1 {
 .timer.stopped { background: #b00020; }
 .timer.reset { background: var(--timer-left-bg); }
 
-/* Export CSV button */
+/* Export CSV button (used on Game Data and Season pages) - same color everywhere */
 .top-btn.export-csv {
   background: #46798e;
   color: #fff;
