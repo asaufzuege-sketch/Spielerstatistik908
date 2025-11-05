@@ -1,34 +1,26 @@
-// season_map_momentum.js (12-window smooth area chart)
-// - Produces an area chart distributed over 12 time-windows (P1: 4 buckets, P2: 4, P3: 4).
-// - Each window's value = scored - conceded from the corresponding time-box bucket.
-// - Positive values produce green filled area above baseline, negative values red area below baseline.
-// - Smooth curve using Catmull-Rom -> Bezier conversion to produce the "mountain" look.
-// - Hides the season Map timebox (per your request) and inserts the SVG under #seasonMapPage.
-// - Auto-updates when time-box values change. Exposes window.renderSeasonMomentumGraphic() for manual calls.
-//
-// Replace existing season_map_momentum.js with this file (1:1).
-// Assumes your season time box buckets are arranged as in the app (top row = scored, bottom row = conceded).
-// The order of the 12 windows is:
-//   P1: [19-15, 14-10, 9-5, 4-0],
-//   P2: [19-15, 14-10, 9-5, 4-0],
-//   P3: [19-15, 14-10, 9-5, 4-0]
+// season_map_momentum.js (updated: minute-based full-width mapping, 12 windows at 5min steps)
+// - Maps the 12 windows to exact minute midpoints across a full 0..60 minute timeline (fills full chart width).
+// - Windows (left-to-right):  P1: 4-0(mid2), 9-5(mid7), 14-10(mid12), 19-15(mid17),
+//                                P2: 24-20(mid22), 29-25(mid27), 34-30(mid32), 39-35(mid37),
+//                                P3: 44-40(mid42), 49-45(mid47), 54-50(mid52), 59-55(mid57).
+//   (These are the global midpoints used as minutes: [2,7,12,17,22,27,32,37,42,47,52,57])
+// - Draws ticks every 5 minutes (0,5,10,...,60) across the full usable width.
+// - Smooths the curve (Catmull-Rom to Bezier) and fills positive (green) and negative (red) areas.
+// - Hides the timebox on the season map (scriptually). Auto-updates on time-box changes.
+// - Use this file to replace the previous season_map_momentum.js 1:1.
 
 (function () {
-  // bucket labels & local midpoints (for reference only)
-  const BUCKETS = [
-    { label: 'P1 19-15' }, { label: 'P1 14-10' }, { label: 'P1 9-5' }, { label: 'P1 4-0' },
-    { label: 'P2 19-15' }, { label: 'P2 14-10' }, { label: 'P2 9-5' }, { label: 'P2 4-0' },
-    { label: 'P3 19-15' }, { label: 'P3 14-10' }, { label: 'P3 9-5' }, { label: 'P3 4-0' }
-  ];
+  // 12 window minute midpoints (ascending)
+  const WINDOW_MINUTES = [2,7,12,17,22,27,32,37,42,47,52,57];
 
-  // SVG layout
+  // SVG layout constants
   const SVG_W = 900;
   const SVG_H = 220;
-  const MARGIN = { left: 40, right: 40, top: 24, bottom: 36 };
+  const MARGIN = { left: 32, right: 32, top: 20, bottom: 36 };
   const TOP_GUIDE_Y = 28;
-  const MIDLINE_Y = 120;   // baseline
+  const MIDLINE_Y = 120;
   const BOTTOM_GUIDE_Y = 196;
-  const MAX_DISPLAY = 6;   // maximum absolute value scale (clamped) for display
+  const MAX_DISPLAY = 6; // clamp scale for display (adjust if you expect bigger values)
 
   function getSeasonMapRoot() {
     return document.getElementById('seasonMapPage') || document.body;
@@ -43,18 +35,17 @@
     return null;
   }
 
-  // hide the timebox (scriptually)
   function hideTimeBox() {
     const tb = getTimeBoxElement();
     if (tb) tb.style.display = 'none';
   }
 
-  // read the time-box values and return 3 periods each with scored[4], conceded[4]
+  // Read periods from season map time tracking box
   function readPeriodsFromTimebox() {
     const box = getTimeBoxElement();
     const periods = [];
     if (!box) {
-      // nothing found -> return zeroed 3 periods
+      // return zeros if timebox missing
       for (let i = 0; i < 3; i++) periods.push({ scored: [0,0,0,0], conceded: [0,0,0,0] });
       return periods;
     }
@@ -69,13 +60,11 @@
         scored = topBtns.slice(0,4).map(b => Number(b.textContent || 0) || 0);
         conceded = bottomBtns.slice(0,4).map(b => Number(b.textContent || 0) || 0);
       } else {
-        // fallback: all .time-btn in the period
         const allBtns = Array.from(pEl.querySelectorAll('.time-btn'));
         if (allBtns.length >= 8) {
           scored = allBtns.slice(0,4).map(b => Number(b.textContent || 0) || 0);
           conceded = allBtns.slice(4,8).map(b => Number(b.textContent || 0) || 0);
         } else if (allBtns.length >= 4) {
-          // assume these are scored only
           scored = allBtns.slice(0,4).map(b => Number(b.textContent || 0) || 0);
           conceded = [0,0,0,0];
         } else {
@@ -86,16 +75,16 @@
       periods.push({ scored, conceded });
     }
 
-    // ensure 3 periods
     while (periods.length < 3) periods.push({ scored: [0,0,0,0], conceded: [0,0,0,0] });
     return periods.slice(0,3);
   }
 
-  // create 12 values array (scored - conceded) in order of BUCKETS
+  // Build 12 window values (scored - conceded) in the ascending minute order
   function build12Values(periods) {
     const vals = [];
     for (let p = 0; p < 3; p++) {
       const period = periods[p] || { scored: [0,0,0,0], conceded: [0,0,0,0] };
+      // bucket order should correspond to minutes [2,7,12,17] per period (low->high)
       for (let b = 0; b < 4; b++) {
         const s = Number(period.scored[b] || 0) || 0;
         const c = Number(period.conceded[b] || 0) || 0;
@@ -105,50 +94,50 @@
     return vals;
   }
 
-  // Catmull-Rom to Bezier helper for smooth path across points
-  // points: [{x,y},...]
+  // Catmull-Rom -> cubic Bezier conversion (returns SVG path starting with M)
   function catmullRom2bezier(points) {
-    // returns an SVG path string starting with M...
     if (!points || points.length === 0) return '';
-    if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-    // if two points, simple line
-    if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+    if (points.length === 1) return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+    if (points.length === 2) return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)} L ${points[1].x.toFixed(2)} ${points[1].y.toFixed(2)}`;
 
-    const cr = [];
-    // for endpoints, duplicate
     const p = [];
-    p.push(points[0]); // p0' = p0
+    p.push(points[0]);
     for (let i = 0; i < points.length; i++) p.push(points[i]);
-    p.push(points[points.length - 1]); // pn' = pn
+    p.push(points[points.length - 1]);
 
-    // Build bezier segments
     let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
     for (let i = 1; i < p.length - 2; i++) {
-      const p0 = p[i - 1];
-      const p1 = p[i];
-      const p2 = p[i + 1];
-      const p3 = p[i + 2];
-
-      // catmull-rom to bezier conversion
+      const p0 = p[i - 1], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2];
       const b1x = p1.x + (p2.x - p0.x) / 6;
       const b1y = p1.y + (p2.y - p0.y) / 6;
       const b2x = p2.x - (p3.x - p1.x) / 6;
       const b2y = p2.y - (p3.y - p1.y) / 6;
-
       d += ` C ${b1x.toFixed(2)} ${b1y.toFixed(2)}, ${b2x.toFixed(2)} ${b2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
     }
     return d;
   }
 
-  // main render function
+  function minuteToX(minute) {
+    const usableW = SVG_W - MARGIN.left - MARGIN.right;
+    const clamped = Math.max(0, Math.min(60, minute));
+    return MARGIN.left + (clamped / 60) * usableW;
+  }
+
+  function valueToY(v, maxScale) {
+    const t = v / maxScale; // -1..1
+    const topSpace = MIDLINE_Y - TOP_GUIDE_Y;
+    return MIDLINE_Y - t * topSpace;
+  }
+
+  // main renderer
   function renderSeasonMomentumGraphic() {
     const root = getSeasonMapRoot();
     if (!root) return;
 
-    // hide timebox (user requested)
+    // hide time box as requested
     hideTimeBox();
 
-    // create container
+    // container
     let container = root.querySelector('#seasonMapMomentumContainer');
     if (!container) {
       container = document.createElement('div');
@@ -160,28 +149,22 @@
     }
     container.innerHTML = '';
 
-    // read data
+    // read data and compute values
     const periods = readPeriodsFromTimebox();
     const values12 = build12Values(periods);
 
-    // determine scale: use absolute max or 1 to avoid division by 0
-    const absMax = Math.max(1, ...values12.map(v => Math.abs(v)));
-    const displayMax = Math.max(absMax, 1, MAX_DISPLAY);
-    const maxScale = displayMax; // we map -maxScale..+maxScale to TOP..BOTTOM
+    // determine display scale
+    const absMax = Math.max(1, ...values12.map(x => Math.abs(x)));
+    const maxScale = Math.max(absMax, MAX_DISPLAY);
 
-    // compute x positions for 12 windows evenly across usable width
-    const usableW = SVG_W - MARGIN.left - MARGIN.right;
-    const step = usableW / (BUCKETS.length - 1); // spaces between points
-    const points = values12.map((v, i) => {
-      const x = MARGIN.left + i * step;
-      // map value v to y: v/maxScale -> -1..1 ; y = MIDLINE - normalized*(MIDLINE-TOP)
-      const t = v / maxScale;
-      const topSpace = MIDLINE_Y - TOP_GUIDE_Y;
-      const y = MIDLINE_Y - t * topSpace;
-      return { x, y, v, i };
+    // compute points based on minute midpoints
+    const points = WINDOW_MINUTES.map((minute, idx) => {
+      const x = minuteToX(minute);
+      const y = valueToY(values12[idx] || 0, maxScale);
+      return { x, y, v: values12[idx] || 0, minute, idx };
     });
 
-    // create SVG
+    // create svg
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
     svg.setAttribute('width', '100%');
@@ -189,38 +172,31 @@
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svg.style.display = 'block';
 
-    // background guide lines
-    const topLine = document.createElementNS(svgNS, 'line');
-    topLine.setAttribute('x1', MARGIN.left); topLine.setAttribute('x2', SVG_W - MARGIN.right);
-    topLine.setAttribute('y1', TOP_GUIDE_Y); topLine.setAttribute('y2', TOP_GUIDE_Y);
-    topLine.setAttribute('stroke', '#d6d6d6'); topLine.setAttribute('stroke-width', '2');
-    svg.appendChild(topLine);
+    // guide lines
+    const createLine = (x1,x2,y1,y2,stroke,sw) => {
+      const l = document.createElementNS(svgNS,'line');
+      l.setAttribute('x1', x1); l.setAttribute('x2', x2);
+      l.setAttribute('y1', y1); l.setAttribute('y2', y2);
+      l.setAttribute('stroke', stroke); l.setAttribute('stroke-width', sw);
+      return l;
+    };
+    svg.appendChild(createLine(MARGIN.left, SVG_W - MARGIN.right, TOP_GUIDE_Y, TOP_GUIDE_Y, '#d6d6d6', 2));
+    svg.appendChild(createLine(MARGIN.left, SVG_W - MARGIN.right, MIDLINE_Y, MIDLINE_Y, '#7a7a7a', 3));
+    svg.appendChild(createLine(MARGIN.left, SVG_W - MARGIN.right, BOTTOM_GUIDE_Y, BOTTOM_GUIDE_Y, '#d6d6d6', 2));
 
-    const midLine = document.createElementNS(svgNS, 'line');
-    midLine.setAttribute('x1', MARGIN.left); midLine.setAttribute('x2', SVG_W - MARGIN.right);
-    midLine.setAttribute('y1', MIDLINE_Y); midLine.setAttribute('y2', MIDLINE_Y);
-    midLine.setAttribute('stroke', '#7a7a7a'); midLine.setAttribute('stroke-width', '3');
-    svg.appendChild(midLine);
+    // build pos/neg arrays (y replaced by MIDLINE for opposite sign)
+    const posPts = points.map(p => ({ x: p.x, y: p.v > 0 ? p.y : MIDLINE_Y }));
+    const negPts = points.map(p => ({ x: p.x, y: p.v < 0 ? p.y : MIDLINE_Y }));
 
-    const bottomLine = document.createElementNS(svgNS, 'line');
-    bottomLine.setAttribute('x1', MARGIN.left); bottomLine.setAttribute('x2', SVG_W - MARGIN.right);
-    bottomLine.setAttribute('y1', BOTTOM_GUIDE_Y); bottomLine.setAttribute('y2', BOTTOM_GUIDE_Y);
-    bottomLine.setAttribute('stroke', '#d6d6d6'); bottomLine.setAttribute('stroke-width', '2');
-    svg.appendChild(bottomLine);
+    // smooth paths
+    const posD = catmullRom2bezier(posPts);
+    const negD = catmullRom2bezier(negPts);
 
-    // Build clipped arrays for positive and negative areas (clip values by sign)
-    const posPoints = points.map(p => ({ x: p.x, y: p.v > 0 ? p.y : MIDLINE_Y }));
-    const negPoints = points.map(p => ({ x: p.x, y: p.v < 0 ? p.y : MIDLINE_Y }));
-
-    // Build smooth path strings
-    const posPathD = catmullRom2bezier(posPoints);
-    const negPathD = catmullRom2bezier(negPoints);
-
-    // Create positive area polygon (path + closing to baseline)
+    // draw positive area
     if (values12.some(v => v > 0)) {
-      const dClose = posPathD + ` L ${points[points.length - 1].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} L ${points[0].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} Z`;
+      const closed = posD + ` L ${points[points.length - 1].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} L ${points[0].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} Z`;
       const pathPos = document.createElementNS(svgNS, 'path');
-      pathPos.setAttribute('d', dClose);
+      pathPos.setAttribute('d', closed);
       pathPos.setAttribute('fill', '#1fb256');
       pathPos.setAttribute('stroke', '#7a7a7a');
       pathPos.setAttribute('stroke-width', '0.9');
@@ -228,11 +204,11 @@
       svg.appendChild(pathPos);
     }
 
-    // Create negative area polygon
+    // draw negative area
     if (values12.some(v => v < 0)) {
-      const dClose = negPathD + ` L ${points[points.length - 1].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} L ${points[0].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} Z`;
+      const closed = negD + ` L ${points[points.length - 1].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} L ${points[0].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} Z`;
       const pathNeg = document.createElementNS(svgNS, 'path');
-      pathNeg.setAttribute('d', dClose);
+      pathNeg.setAttribute('d', closed);
       pathNeg.setAttribute('fill', '#f07d7d');
       pathNeg.setAttribute('stroke', '#7a7a7a');
       pathNeg.setAttribute('stroke-width', '0.9');
@@ -240,9 +216,9 @@
       svg.appendChild(pathNeg);
     }
 
-    // Draw smooth outline of actual values (combined curve)
+    // outline curve
     const outlineD = catmullRom2bezier(points);
-    const outline = document.createElementNS(svgNS, 'path');
+    const outline = document.createElementNS(svgNS,'path');
     outline.setAttribute('d', outlineD);
     outline.setAttribute('fill', 'none');
     outline.setAttribute('stroke', '#666');
@@ -251,19 +227,15 @@
     outline.setAttribute('stroke-linecap', 'round');
     svg.appendChild(outline);
 
-    // X ticks and top numbers (mimicking original style)
-    const tickVals = [0,10,15,20,25,30,35,40,45,50,55,60];
-    tickVals.forEach(t => {
-      // compute x by mapping minutes to the 12 windows positions
-      // map t to nearest index in 0..11 proportionally:
-      const rel = t / 60;
-      const x = MARGIN.left + rel * (SVG_W - MARGIN.left - MARGIN.right);
-      const tick = document.createElementNS(svgNS, 'line');
+    // ticks every 5 minutes across full width (0..60)
+    for (let t = 0; t <= 60; t += 5) {
+      const x = minuteToX(t);
+      const tick = document.createElementNS(svgNS,'line');
       tick.setAttribute('x1', x); tick.setAttribute('x2', x);
       tick.setAttribute('y1', TOP_GUIDE_Y - 8); tick.setAttribute('y2', TOP_GUIDE_Y + 8);
       tick.setAttribute('stroke', '#444'); tick.setAttribute('stroke-width', '1');
       svg.appendChild(tick);
-      const txt = document.createElementNS(svgNS, 'text');
+      const txt = document.createElementNS(svgNS,'text');
       txt.setAttribute('x', x); txt.setAttribute('y', TOP_GUIDE_Y - 12);
       txt.setAttribute('text-anchor', 'middle');
       txt.setAttribute('font-family', 'Segoe UI, Roboto, Arial');
@@ -271,20 +243,15 @@
       txt.setAttribute('fill', '#111');
       txt.textContent = String(t);
       svg.appendChild(txt);
-    });
+    }
 
-    // Right Y labels for scale (0..max)
-    const labelGroup = document.createElementNS(svgNS, 'g');
+    // right-side labels (scale)
+    const labelGroup = document.createElementNS(svgNS,'g');
     labelGroup.setAttribute('transform', `translate(${SVG_W - 18},0)`);
-    const maxLabel = Math.ceil(displayMax);
+    const maxLabel = Math.ceil(maxScale);
     for (let l = maxLabel; l >= -maxLabel; l--) {
-      const y = (function (val) {
-        // map val to y using same mapping logic
-        const t = val / maxScale;
-        const topSpace = MIDLINE_Y - TOP_GUIDE_Y;
-        return MIDLINE_Y - t * topSpace;
-      })(l);
-      const tEl = document.createElementNS(svgNS, 'text');
+      const y = valueToY(l, maxScale);
+      const tEl = document.createElementNS(svgNS,'text');
       tEl.setAttribute('x', 0); tEl.setAttribute('y', y + 4);
       tEl.setAttribute('text-anchor', 'start');
       tEl.setAttribute('font-family', 'Segoe UI, Roboto, Arial');
@@ -295,44 +262,31 @@
     }
     svg.appendChild(labelGroup);
 
-    // axis labels
-    const axisLabel = document.createElementNS(svgNS, 'text');
-    axisLabel.setAttribute('x', (SVG_W / 2).toFixed(0));
-    axisLabel.setAttribute('y', (SVG_H - 6).toFixed(0));
-    axisLabel.setAttribute('text-anchor', 'middle');
-    axisLabel.setAttribute('font-family', 'Segoe UI, Roboto');
-    axisLabel.setAttribute('font-weight', '700');
-    axisLabel.setAttribute('font-size', '16');
-    axisLabel.setAttribute('fill', '#111');
+    // axis label and left label
+    const axisLabel = document.createElementNS(svgNS,'text');
+    axisLabel.setAttribute('x', (SVG_W/2).toFixed(0)); axisLabel.setAttribute('y', (SVG_H - 6).toFixed(0));
+    axisLabel.setAttribute('text-anchor', 'middle'); axisLabel.setAttribute('font-family', 'Segoe UI, Roboto');
+    axisLabel.setAttribute('font-weight', '700'); axisLabel.setAttribute('font-size', '16'); axisLabel.setAttribute('fill', '#111');
     axisLabel.textContent = 'Gameplay';
     svg.appendChild(axisLabel);
 
-    const leftLabel = document.createElementNS(svgNS, 'text');
-    leftLabel.setAttribute('x', '6');
-    leftLabel.setAttribute('y', (MIDLINE_Y + 4).toFixed(0));
-    leftLabel.setAttribute('text-anchor', 'start');
-    leftLabel.setAttribute('font-family', 'Segoe UI, Roboto');
-    leftLabel.setAttribute('font-weight', '700');
-    leftLabel.setAttribute('font-size', '14');
-    leftLabel.setAttribute('fill', '#111');
+    const leftLabel = document.createElementNS(svgNS,'text');
+    leftLabel.setAttribute('x', '6'); leftLabel.setAttribute('y', (MIDLINE_Y + 4).toFixed(0));
+    leftLabel.setAttribute('text-anchor', 'start'); leftLabel.setAttribute('font-family', 'Segoe UI, Roboto');
+    leftLabel.setAttribute('font-weight', '700'); leftLabel.setAttribute('font-size', '14'); leftLabel.setAttribute('fill', '#111');
     leftLabel.textContent = 'Momentum';
     svg.appendChild(leftLabel);
 
-    // append svg
-    const wrapper = document.createElement('div');
-    wrapper.style.width = '100%';
-    wrapper.appendChild(svg);
-    container.appendChild(wrapper);
+    // append SVG to container
+    container.appendChild(svg);
 
-    // small debug
-    console.info('[momentum-12] rendered chart with values:', values12, 'scale:', maxScale);
+    console.info('[momentum-12-window] rendered; values:', values12, 'maxScale:', maxScale);
   }
 
-  // watch for changes to time box and re-render
+  // auto update: observe timebox and re-render on changes
   function setupAutoUpdate() {
     const tb = getTimeBoxElement();
     if (!tb) {
-      // wait for season map/timebox to appear
       const root = getSeasonMapRoot();
       const mo = new MutationObserver(() => {
         if (getTimeBoxElement()) {
@@ -345,7 +299,7 @@
       return;
     }
 
-    // hide timebox right away
+    // hide timebox (per user)
     hideTimeBox();
 
     // initial render
@@ -361,9 +315,9 @@
         setupAutoUpdate._timer = setTimeout(() => renderSeasonMomentumGraphic(), 120);
       }
     });
+
     mo.observe(tb, { subtree: true, characterData: true, childList: true, attributes: true });
 
-    // also re-render on click (when user adjusts a time-btn)
     tb.addEventListener('click', (e) => {
       if (e.target && e.target.classList && e.target.classList.contains('time-btn')) {
         setTimeout(() => renderSeasonMomentumGraphic(), 100);
@@ -371,7 +325,7 @@
     }, true);
   }
 
-  // export for manual calls
+  // expose for debug
   window.renderSeasonMomentumGraphic = renderSeasonMomentumGraphic;
   window._seasonMomentum12_readPeriods = readPeriodsFromTimebox;
 
