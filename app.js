@@ -3,7 +3,12 @@
 // - Season-Import: addiert numerische Felder zu bestehenden seasonData; 'games' bleibt unverändert.
 // - Export (Game Data): exportiert Player-Rows, Total-Zeile und eine TIMER-Zeile.
 // - Export (Season): exportiert Player-Rows und eine Total/Ø-Zeile.
-// - UI: sorgt dafür, dass Export-Buttons auf beiden Seiten dieselbe Farbe erhalten.
+// - Export-Dialog-Flows:
+//   - Game Data -> Season: "Spiel zu Season exportieren?" (OK/Abbrechen) -> danach
+//     "Spiel wurde in Season exportiert, Daten in Game Data beibehalten?" (OK = Ja, Abbrechen = Nein).
+//   - Goal Map -> Season Map: "In Season Map exportieren?" (OK/Abbrechen) -> danach
+//     "Spiel wurde in Season Map exportiert, Daten in Goal Map beibehalten?" (OK = Ja, Abbrechen = Nein).
+//   - Keine weiteren Bestätigungen danach.
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- Elements (buttons remain in DOM per page) ---
@@ -60,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const seasonMapBoxesSelector = "#seasonMapPage .field-box, #seasonMapPage .goal-img-box";
 
   const torbildTimeTrackingBox = document.getElementById("timeTrackingBox");
-  const seasonMapTimeTrackingBox = document.getElementById("seasonMapTimeTrackingBox");
+  const seasonMapTimeTrackingBox = document.getElementById("seasonTimeTrackingBox");
 
   const goalValueContainer = document.getElementById("goalValueContainer");
   const resetGoalValueBtn = document.getElementById("resetGoalValueBtn");
@@ -817,7 +822,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initTimeTrackingBox(torbildTimeTrackingBox, "timeData", false);
   initTimeTrackingBox(seasonMapTimeTrackingBox, "seasonMapTimeData", true);
 
-  // --- Season Map export/import functions (unchanged) ---
+  // --- Season Map export/import functions (modified export flow) ---
   function readTimeTrackingFromBox(box) {
     const result = {};
     if (!box) return result;
@@ -844,6 +849,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function exportSeasonMapFromTorbild() {
+    // First confirm export
+    const proceed = confirm("In Season Map exportieren?");
+    if (!proceed) return;
+
     const boxes = Array.from(document.querySelectorAll(torbildBoxesSelector));
     const allMarkers = boxes.map(box => {
       const markers = [];
@@ -862,6 +871,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const timeData = readTimeTrackingFromBox(torbildTimeTrackingBox);
     localStorage.setItem("seasonMapTimeData", JSON.stringify(timeData));
 
+    // After export, ask whether to keep data in Goal Map
+    const keep = confirm("Spiel wurde in Season Map exportiert, Daten in Goal Map beibehalten? (OK = Ja, Abbrechen = Nein)");
+    if (!keep) {
+      // remove markers and reset time boxes in Goal Map (torbildPage)
+      document.querySelectorAll("#torbildPage .marker-dot").forEach(d => d.remove());
+      document.querySelectorAll("#torbildPage .time-btn").forEach(btn => btn.textContent = "0");
+      localStorage.removeItem("timeData");
+    }
+
+    // navigate to seasonMap
     showPage("seasonMap");
     renderSeasonMapPage();
   }
@@ -1023,7 +1042,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (exportSeasonMapBtn) {
     exportSeasonMapBtn.addEventListener("click", () => {
       exportSeasonMapFromTorbild();
-      alert("Season Map exportiert und geöffnet.");
+      // no extra alert (flow handled in function)
     });
   }
 
@@ -1043,15 +1062,18 @@ document.addEventListener("DOMContentLoaded", () => {
   if (backToStatsFromSeasonMapBtn) backToStatsFromSeasonMapBtn.addEventListener("click", () => showPage("stats"));
   if (document.getElementById("resetSeasonMapBtn")) document.getElementById("resetSeasonMapBtn").addEventListener("click", resetSeasonMap);
 
-  // --- Season export (Stats -> Season) ---
+  // --- Season export (Stats -> Season) (modified flow) ---
   const exportSeasonHandler = () => {
+    // first prompt: ask to export
+    const proceed = confirm("Spiel zu Season exportieren?");
+    if (!proceed) return;
+
     if (!selectedPlayers || selectedPlayers.length === 0) {
       alert("Keine Spieler ausgewählt, nichts zu exportieren.");
       return;
     }
-    const doExport = confirm("Exportiere die aktuellen Spieldaten in die Season-Tabelle als 1 Spiel (Game)?\n\n(Ja = exportieren)");
-    if (!doExport) return;
 
+    // perform export (accumulate as one game)
     selectedPlayers.forEach(p => {
       const name = p.name;
       const stats = statsData[name] || {};
@@ -1099,8 +1121,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     localStorage.setItem("seasonData", JSON.stringify(seasonData));
 
-    const clearAfterExport = confirm("Spiel wurde exportiert. Soll das aktuelle Spiel (Stats + Time) für die exportierten Spieler zurückgesetzt werden? (OK = zurücksetzen, Abbrechen = beibehalten)");
-    if (clearAfterExport) {
+    // second prompt: ask whether to keep data in Game Data
+    const keep = confirm("Spiel wurde in Season exportiert, Daten in Game Data beibehalten? (OK = Ja, Abbrechen = Nein)");
+    if (!keep) {
+      // clear stats + times for exported players (no further confirmations)
       selectedPlayers.forEach(p => {
         const name = p.name;
         if (!statsData[name]) statsData[name] = {};
@@ -1114,8 +1138,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     showPage("season");
     renderSeasonTable();
-
-    alert("Daten wurden als Spiel in die Season-Tabelle übernommen.");
   };
 
   if (exportSeasonFromStatsBtn) {
@@ -1892,101 +1914,6 @@ document.addEventListener("DOMContentLoaded", () => {
   goalValueBtn?.addEventListener("click", () => showPageRef("goalValue"));
   backFromGoalValueBtn?.addEventListener("click", () => showPageRef("stats"));
   resetGoalValueBtn?.addEventListener("click", resetGoalValuePage);
-
-  // Season CSV export (on Season page) - extended: include total row
-  document.getElementById("exportSeasonBtn")?.addEventListener("click", () => {
-    const header = ["Nr","Spieler","Games","Goals","Assists","Points","+/-","Ø +/-","Shots","Shots/Game","Goals/Game","Points/Game","Penalty","Goal Value","FaceOffs","FaceOffs Won","FaceOffs %","Time"];
-    const rows = [header];
-
-    // build rows for each player using seasonData values (1:1)
-    Object.keys(seasonData).forEach(name => {
-      const d = seasonData[name];
-      const games = Number(d.games || 0);
-      const goals = Number(d.goals || 0);
-      const assists = Number(d.assists || 0);
-      const points = goals + assists;
-      const plusMinus = Number(d.plusMinus || 0);
-      const shots = Number(d.shots || 0);
-      const penalty = Number(d.penaltys || 0);
-      const faceOffs = Number(d.faceOffs || 0);
-      const faceOffsWon = Number(d.faceOffsWon || 0);
-      const faceOffPercent = faceOffs ? Math.round((faceOffsWon/faceOffs)*100) : 0;
-      const timeStr = formatTimeMMSS(Number(d.timeSeconds||0));
-      const shotsGame = games ? (shots/games).toFixed(1) : "0.0";
-      const goalsGame = games ? (goals/games).toFixed(1) : "0.0";
-      const pointsGame = games ? ((points)/games).toFixed(1) : "0.0";
-      const avgPlus = games ? (plusMinus/games).toFixed(1) : "0.0";
-      let gv = "";
-      try {
-        if (typeof computeValueForPlayer === "function") gv = computeValueForPlayer(d.name);
-        else gv = d.goalValue || "";
-      } catch (e) {
-        gv = d.goalValue || "";
-      }
-      rows.push([d.num || "", d.name, games, goals, assists, points, plusMinus, avgPlus, shots, shotsGame, goalsGame, pointsGame, penalty, gv, faceOffs, faceOffsWon, `${faceOffPercent}%`, timeStr]);
-    });
-
-    // compute totals/averages for total row similar to renderSeasonTable
-    const keys = Object.keys(seasonData);
-    if (keys.length > 0) {
-      const sums = { games:0, goals:0, assists:0, points:0, plusMinus:0, shots:0, penalty:0, faceOffs:0, faceOffsWon:0, timeSeconds:0 };
-      keys.forEach(n => {
-        const d = seasonData[n];
-        sums.games += Number(d.games || 0);
-        sums.goals += Number(d.goals || 0);
-        sums.assists += Number(d.assists || 0);
-        sums.points += (Number(d.goals||0) + Number(d.assists||0));
-        sums.plusMinus += Number(d.plusMinus || 0);
-        sums.shots += Number(d.shots || 0);
-        sums.penalty += Number(d.penaltys || 0);
-        sums.faceOffs += Number(d.faceOffs || 0);
-        sums.faceOffsWon += Number(d.faceOffsWon || 0);
-        sums.timeSeconds += Number(d.timeSeconds || 0);
-      });
-
-      const count = keys.length;
-      const avgGames = sums.games / count;
-      const avgGoals = sums.goals / count;
-      const avgAssists = sums.assists / count;
-      const avgPoints = sums.points / count;
-      const avgPlusMinus = sums.plusMinus / count;
-      const avgShots = sums.shots / count;
-      const avgPenalty = sums.penalty / count;
-      const avgFaceOffs = sums.faceOffs / count;
-      const avgFaceOffsWon = sums.faceOffsWon / count;
-      const avgFaceOffPercent = avgFaceOffs ? Math.round((avgFaceOffsWon / avgFaceOffs) * 100) : 0;
-      const avgTimeSeconds = Math.round(sums.timeSeconds / count);
-
-      const totalRow = [
-        "", "Total Ø",
-        Number((avgGames).toFixed(1)),
-        Number((avgGoals).toFixed(1)),
-        Number((avgAssists).toFixed(1)),
-        Number((avgPoints).toFixed(1)),
-        Number((avgPlusMinus).toFixed(1)),
-        Number((avgPlusMinus).toFixed(1)),
-        Number((avgShots).toFixed(1)),
-        Number((avgShots / (avgGames || 1)).toFixed(1)),
-        Number((avgGoals / (avgGames || 1)).toFixed(1)),
-        Number((avgPoints / (avgGames || 1)).toFixed(1)),
-        Number((avgPenalty).toFixed(1)),
-        "", // goal value left empty
-        Number((avgFaceOffs).toFixed(1)),
-        Number((avgFaceOffsWon).toFixed(1)),
-        `${avgFaceOffPercent}%`,
-        formatTimeMMSS(avgTimeSeconds)
-      ];
-      rows.push(totalRow);
-    }
-
-    const csv = rows.map(r => r.join(";")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "season.csv";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
 
   // ----- GOAL VALUE Helpers (unchanged) -----
   function getGoalValueOpponents() {
