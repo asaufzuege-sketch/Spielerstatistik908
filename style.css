@@ -80,7 +80,7 @@ h1 {
   background: linear-gradient(135deg, var(--page-title-start) 0%, var(--page-title-end) 100%);
   -webkit-background-clip: text;
   background-clip: text;
-  -webkit-text-fill-color: transparent; /* ensure gradient shows on WebKit */
+  -webkit-text-fill-color: transparent;
   color: transparent;
 }
 
@@ -229,7 +229,7 @@ h1 {
 }
 .top-btn.season-highlight:hover { filter: brightness(0.95); }
 
-/* Export Season buttons color */
+/* Export Season (from stats) button color kept distinct */
 .top-btn.export-season {
   background: #e3fba7;
   color: #000;
@@ -238,7 +238,6 @@ h1 {
 
 /* Import CSV button (dynamically created) - ensure it matches top-btn sizing */
 .import-csv-btn {
-  /* it is created with class "top-btn import-csv-btn", so sizing is inherited from .top-btn */
   background: #010741;
   color: #fff;
 }
