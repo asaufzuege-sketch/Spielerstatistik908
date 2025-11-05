@@ -1,8 +1,6 @@
-/* season_map_momentum.css
-   Optional stylesheet to style the inserted container and SVG.
-   Falls du bereits eine zentrale style.css verwendest, kannst du diese Regeln dort hinzufügen.
-*/
-
+/* season_map_momentum.css (Spikes-Version)
+   Ergänzende CSS für das Season-Map-Diagramm. */
+/* Container */
 #seasonMapMomentumContainer {
   width: 100%;
   max-width: 1100px;
@@ -13,6 +11,7 @@
   padding: 2px 6px 6px 6px;
 }
 
+/* SVG sizing */
 #seasonMapMomentumContainer svg {
   display: block;
   width: 100%;
@@ -20,12 +19,17 @@
   user-select: none;
 }
 
-/* Optional: make the container visually match other top bars */
-#seasonMapMomentumContainer {
-  /* no heavy background so it blends with page */
-}
+/* Optional: if you actually want to hide the timebox via CSS too (double-safety),
+   uncomment the following rule (keeps the DOM element but hides it visually):
 
-/* Badge text inside circles: fallback if user agent doesn't center perfectly */
+#seasonMapTimeTrackingBox,
+#seasonTimeTrackingBox,
+#timeTrackingBox {
+  display: none !important;
+}
+*/
+
 #seasonMapMomentumContainer text {
   dominant-baseline: middle;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
 }
