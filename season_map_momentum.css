@@ -1,6 +1,7 @@
-/* season_map_momentum.css (Spikes-Version)
-   Ergänzende CSS für das Season-Map-Diagramm. */
-/* Container */
+/* season_map_momentum.css (12-window area chart)
+   Add to your CSS or replace the previous momentum css.
+*/
+
 #seasonMapMomentumContainer {
   width: 100%;
   max-width: 1100px;
@@ -11,7 +12,6 @@
   padding: 2px 6px 6px 6px;
 }
 
-/* SVG sizing */
 #seasonMapMomentumContainer svg {
   display: block;
   width: 100%;
@@ -19,17 +19,8 @@
   user-select: none;
 }
 
-/* Optional: if you actually want to hide the timebox via CSS too (double-safety),
-   uncomment the following rule (keeps the DOM element but hides it visually):
-
-#seasonMapTimeTrackingBox,
-#seasonTimeTrackingBox,
-#timeTrackingBox {
-  display: none !important;
-}
-*/
-
 #seasonMapMomentumContainer text {
   dominant-baseline: middle;
   font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 11px;
 }
