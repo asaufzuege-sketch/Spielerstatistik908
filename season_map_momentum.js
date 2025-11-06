@@ -1,19 +1,21 @@
 // season_map_momentum.js
 // Option B (periods run from 20 down to 0 inside each period); full-width 0..60 timeline.
-// Updated: labels 0..60 in 5-min steps are now drawn directly on the white top guide line (centered on the line).
+// Updated: top guide-line labels (0..60 every 5 minutes) are white and placed UNDER the white line.
+// Also made sure the labels are aligned to the exact minute positions (0 at leftmost, 60 at rightmost).
 // Keeps localStorage-first reading, DOM fallback, reset clearing, smoothing, etc.
 
 (function () {
   const SVG_W = 900;
   const SVG_H = 220;
   const MARGIN = { left: 32, right: 32, top: 20, bottom: 36 };
-  const TOP_GUIDE_Y = 28;    // white labeled line (labels centered on this line)
+  const TOP_GUIDE_Y = 28;    // white labeled line (labels will be drawn below this line)
   const MIDLINE_Y = 120;     // baseline (momentum = 0)
   const BOTTOM_GUIDE_Y = 196;
   const MAX_DISPLAY = 6;
 
-  // Correct per-period mapping: UI order per period is [19-15,14-10,9-5,4-0]
-  // Map them left->right within each period so that 19-15 is the leftmost bucket of the period:
+  // Correct per-period mapping (Option B corrected to place buckets left->right within each period)
+  // UI order per period: [19-15, 14-10, 9-5, 4-0]
+  // Map them left->right within each period so that 19-15 is leftmost:
   // P1 -> [2, 7, 12, 17]  (0 .. 20)
   // P2 -> [22,27,32,37]   (20 .. 40)
   // P3 -> [42,47,52,57]   (40 .. 60)
@@ -210,7 +212,7 @@
     svg.setAttribute('preserveAspectRatio','xMidYMid meet');
     svg.style.display = 'block';
 
-    // top white guide-line and labels 0..60 every 5 minutes (labels centered on the white line)
+    // top white guide-line and labels 0..60 every 5 minutes (labels UNDER the white line, centered)
     const topLine = document.createElementNS(svgNS,'line');
     topLine.setAttribute('x1', MARGIN.left);
     topLine.setAttribute('x2', SVG_W - MARGIN.right);
@@ -228,15 +230,16 @@
       tick.setAttribute('y1', TOP_GUIDE_Y - 6); tick.setAttribute('y2', TOP_GUIDE_Y + 6);
       tick.setAttribute('stroke', '#cccccc'); tick.setAttribute('stroke-width','1');
       svg.appendChild(tick);
-      // numeric label centered vertically on the white line
+      // numeric label placed UNDER the white line (so the number appears below the line)
       const txt = document.createElementNS(svgNS,'text');
       txt.setAttribute('x', x);
-      // center the label vertically on the white line (slightly offset to avoid clipping)
-      txt.setAttribute('y', TOP_GUIDE_Y + 4);
+      // y = TOP_GUIDE_Y + offset -> placed under the white line
+      txt.setAttribute('y', TOP_GUIDE_Y + 14);
       txt.setAttribute('text-anchor', 'middle');
       txt.setAttribute('font-family', 'Segoe UI, Roboto, Arial');
       txt.setAttribute('font-size', '12');
-      txt.setAttribute('fill', '#111');
+      txt.setAttribute('fill', '#ffffff'); // white numbers
+      txt.setAttribute('font-weight', '700');
       txt.textContent = String(t);
       svg.appendChild(txt);
     }
@@ -293,7 +296,7 @@
     outline.setAttribute('stroke-linecap', 'round');
     svg.appendChild(outline);
 
-    // Small markers for visibility (can be removed)
+    // Small markers for each point (visibility) - can be removed later
     chron.forEach(p => {
       const c = document.createElementNS(svgNS,'circle');
       c.setAttribute('cx', p.x.toFixed(2));
