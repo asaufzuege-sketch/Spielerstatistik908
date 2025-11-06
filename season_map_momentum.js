@@ -1,11 +1,15 @@
 // season_map_momentum.js
-// - Full-width 0..60min mapping (12 Fenster, 4x5min per period).
-// - Uses seasonMapTimeData (localStorage) if present, else DOM timebox.
-// - Ensures minute 0 (left) -> minute 60 (right).
-// - Reacts to Season Map reset button clicks and re-renders as zeroed chart.
-// - Removes left "Momentum" label. Draws white top line labeled 0..60 (every 5 min).
-// - Exported helpers: window.renderSeasonMomentumGraphic(), window._seasonMomentum_readPeriods(), window._seasonMomentum_build12()
-
+// Option B mapping: each period shown reversed (period starts at minute 20 and runs down to 0).
+// - Reads localStorage (seasonMapTimeData / timeData) if present (preferred), otherwise DOM timebox.
+// - Bucket -> minute mapping (per your Option B):
+//   P1: 19-15 -> 17, 14-10 -> 12, 9-5 -> 7, 4-0 -> 2
+//   P2: 19-15 -> 37, 14-10 -> 32, 9-5 -> 27, 4-0 -> 22
+//   P3: 19-15 -> 57, 14-10 -> 52, 9-5 -> 47, 4-0 -> 42
+// - For drawing we place each value at its exact minute on a 0..60 horizontal axis (0 left, 60 right).
+// - Points are drawn in chronological order (sorted by minute) for the smooth area curve.
+// - Top white guide-line is labeled 0..60 in 5min steps (above the colored area).
+// - Listens to reset buttons and to storage events to ensure reset clears the chart.
+// - Exposes debug helpers: window._seasonMomentum_readPeriods(), window._seasonMomentum_build12(), window.renderSeasonMomentumGraphic()
 (function () {
   const SVG_W = 900;
   const SVG_H = 220;
@@ -15,8 +19,9 @@
   const BOTTOM_GUIDE_Y = 196;
   const MAX_DISPLAY = 6;
 
-  // Chronological mapping (representative minute for each 5-minute window)
-  const WINDOW_MINUTES = [4,9,14,19,24,29,34,39,44,49,54,59];
+  // Option B: per-bucket mapping to minutes (index 0..11 corresponds to 12 buckets as read)
+  // UI order per period is [19-15, 14-10, 9-5, 4-0] -> mapping minutes accordingly:
+  const BUCKET_MINUTES = [17,12,7,2, 37,32,27,22, 57,52,47,42];
 
   function getSeasonMapRoot() { return document.getElementById('seasonMapPage') || document.body; }
   function getTimeBoxElement() {
@@ -29,7 +34,7 @@
   }
   function hideTimeBox() { const tb = getTimeBoxElement(); if (tb) tb.style.display = 'none'; }
 
-  // Read from localStorage (fallback if DOM not present or export was used)
+  // Read localStorage export fallback
   function readFromLocalStorageFallback() {
     try {
       const raw = localStorage.getItem('seasonMapTimeData') || localStorage.getItem('timeData') || null;
@@ -40,9 +45,6 @@
       const periods = [];
       for (let k = 0; k < keys.length && periods.length < 3; k++) {
         const val = obj[keys[k]];
-        // Support two formats:
-        // - array: [top0,top1,top2,top3, bottom0,bottom1,bottom2,bottom3]
-        // - object: { "0":..., "1":..., ... }
         let scored = [], conceded = [];
         if (Array.isArray(val)) {
           const arr = val;
@@ -56,16 +58,18 @@
             scored = [0,0,0,0]; conceded = [0,0,0,0];
           }
         } else if (val && typeof val === 'object') {
-          // object mapping numeric keys -> construct flat array of length 8
+          // map-like: numeric keys
           const flat = [];
-          for (let i=0;i<8;i++) flat.push(Number(val[String(i)] || 0));
+          for (let i = 0; i < 8; i++) flat.push(Number(val[String(i)] || 0));
           scored = flat.slice(0,4);
           conceded = flat.slice(4,8);
         } else {
           scored = [0,0,0,0]; conceded = [0,0,0,0];
         }
-        // UI order is [19-15,14-10,9-5,4-0] => reverse to chronological [4-0,9-5,14-10,19-15]
-        periods.push({ scored: scored.slice().reverse(), conceded: conceded.slice().reverse() });
+        // UI order is [19-15,14-10,9-5,4-0] -> reverse to chronological per-bucket order (4-0,...,19-15)
+        // But Option B requires we interpret UI buckets as starting at minute 20 and running down -> we keep the read order
+        // and map indexes to BUCKET_MINUTES accordingly (BUCKET_MINUTES already encodes Option B)
+        periods.push({ scored: scored.slice(), conceded: conceded.slice() });
       }
       while (periods.length < 3) periods.push({ scored: [0,0,0,0], conceded: [0,0,0,0] });
       return periods.slice(0,3);
@@ -75,7 +79,7 @@
     }
   }
 
-  // Read periods from DOM timebox (if present). Returns chronological arrays (reversed per UI)
+  // Read from DOM (returns arrays in UI order per period: [19-15,14-10,9-5,4-0])
   function readPeriodsFromDOM() {
     const box = getTimeBoxElement();
     if (!box) return null;
@@ -102,18 +106,17 @@
           scored = [0,0,0,0]; conceded = [0,0,0,0];
         }
       }
-      periods.push({ scored: scored.slice().reverse(), conceded: conceded.slice().reverse() });
+      periods.push({ scored: scored.slice(), conceded: conceded.slice() });
     }
     while (periods.length < 3) periods.push({ scored: [0,0,0,0], conceded: [0,0,0,0] });
     return periods.slice(0,3);
   }
 
   function hasNonZero(periods) {
-    try { return periods.some(p => (p.scored.concat(p.conceded)).some(v => Number(v) !== 0)); } catch(e){ return false; }
+    try { return periods.some(p => (p.scored.concat(p.conceded)).some(v => Number(v) !== 0)); } catch(e) { return false; }
   }
 
-  // Unified read: prefer localStorage when it contains non-zero values (export case),
-  // otherwise prefer DOM if it has values, else fallback to whatever exists.
+  // Unified reader: prefer localStorage if non-zero (export case). Otherwise DOM.
   function readPeriods() {
     const ls = readFromLocalStorageFallback();
     if (ls && hasNonZero(ls)) { console.debug('[momentum] using localStorage periods'); return ls; }
@@ -125,20 +128,20 @@
     return [{ scored:[0,0,0,0], conceded:[0,0,0,0] },{ scored:[0,0,0,0], conceded:[0,0,0,0] },{ scored:[0,0,0,0], conceded:[0,0,0,0] }];
   }
 
+  // Build 12 values in UI order (index 0..11 correspond to UI bucket sequence P1 19-15..4-0, P2..., P3...)
   function build12Values(periods) {
     const vals = [];
-    for (let p=0;p<3;p++) {
+    for (let p = 0; p < 3; p++) {
       const period = periods[p] || { scored:[0,0,0,0], conceded:[0,0,0,0] };
-      for (let b=0;b<4;b++) {
-        const s = Number(period.scored[b]||0)||0;
-        const c = Number(period.conceded[b]||0)||0;
+      for (let b = 0; b < 4; b++) {
+        const s = Number(period.scored[b] || 0) || 0;
+        const c = Number(period.conceded[b] || 0) || 0;
         vals.push(s - c);
       }
     }
     return vals;
   }
 
-  // Catmull-Rom to Bezier conversion for smooth curve
   function catmullRom2bezier(points) {
     if (!points || points.length === 0) return '';
     if (points.length === 1) return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
@@ -148,7 +151,7 @@
     for (let i=0;i<points.length;i++) p.push(points[i]);
     p.push(points[points.length-1]);
     let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
-    for (let i=1;i<p.length-2;i++){
+    for (let i=1;i<p.length-2;i++) {
       const p0 = p[i-1], p1 = p[i], p2 = p[i+1], p3 = p[i+2];
       const b1x = p1.x + (p2.x - p0.x)/6;
       const b1y = p1.y + (p2.y - p0.y)/6;
@@ -162,7 +165,7 @@
   function minuteToX(minute) {
     const usableW = SVG_W - MARGIN.left - MARGIN.right;
     const m = Math.max(0, Math.min(60, minute));
-    return MARGIN.left + (m / 60) * usableW;
+    return MARGIN.left + (m/60) * usableW;
   }
   function valueToY(v, maxScale) {
     const t = v / maxScale;
@@ -170,7 +173,6 @@
     return MIDLINE_Y - t * topSpace;
   }
 
-  // Main render function
   function renderSeasonMomentumGraphic() {
     const root = getSeasonMapRoot();
     if (!root) return;
@@ -183,34 +185,39 @@
       container.style.marginTop = '12px';
       container.style.padding = '8px 12px';
       container.style.boxSizing = 'border-box';
+      container.style.position = 'relative';
       root.appendChild(container);
     }
     container.innerHTML = '';
 
     const periods = readPeriods();
-    console.debug('[momentum] periods used for rendering:', periods);
-
     const values12 = build12Values(periods);
+    console.debug('[momentum] periods used for rendering:', periods);
     console.debug('[momentum] computed values12:', values12);
 
     const absMax = Math.max(1, ...values12.map(v => Math.abs(v)));
     const maxScale = Math.max(absMax, MAX_DISPLAY);
 
-    const points = WINDOW_MINUTES.map((minute, idx) => {
+    // build point objects with explicit minute mapping (Option B)
+    const pts = values12.map((v,i) => {
+      const minute = BUCKET_MINUTES[i];
       const x = minuteToX(minute);
-      const y = valueToY(values12[idx] || 0, maxScale);
-      return { x, y, v: values12[idx] || 0, minute, idx };
+      const y = valueToY(v, maxScale);
+      return { idx: i, minute, x, y, v };
     });
 
+    // sort points chronologically left->right by minute for drawing the curve
+    const chron = pts.slice().sort((a,b) => a.minute - b.minute);
+
+    // prepare svg
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS,'svg');
     svg.setAttribute('width','100%');
     svg.setAttribute('viewBox', `0 0 ${SVG_W} ${SVG_H}`);
     svg.setAttribute('preserveAspectRatio','xMidYMid meet');
     svg.style.display = 'block';
-    svg.style.background = 'transparent';
 
-    // Top white line labeled 0..60 in 5-min steps (above the chart)
+    // top white guide-line and labels 0..60 every 5 minutes
     const topLine = document.createElementNS(svgNS,'line');
     topLine.setAttribute('x1', MARGIN.left);
     topLine.setAttribute('x2', SVG_W - MARGIN.right);
@@ -220,16 +227,13 @@
     topLine.setAttribute('stroke-width', '3');
     svg.appendChild(topLine);
 
-    // Draw tick labels above the white line for 0..60 every 5
-    for (let t = 0; t <= 60; t += 5) {
+    for (let t=0;t<=60;t+=5) {
       const x = minuteToX(t);
-      // short tick (on/through the top line)
       const tick = document.createElementNS(svgNS,'line');
       tick.setAttribute('x1', x); tick.setAttribute('x2', x);
       tick.setAttribute('y1', TOP_GUIDE_Y - 6); tick.setAttribute('y2', TOP_GUIDE_Y + 6);
       tick.setAttribute('stroke', '#cccccc'); tick.setAttribute('stroke-width','1');
       svg.appendChild(tick);
-      // numeric label above the line
       const txt = document.createElementNS(svgNS,'text');
       txt.setAttribute('x', x); txt.setAttribute('y', TOP_GUIDE_Y - 10);
       txt.setAttribute('text-anchor', 'middle');
@@ -240,29 +244,28 @@
       svg.appendChild(txt);
     }
 
-    // Baseline (momentum 0)
+    // baseline and bottom guide
     const midLine = document.createElementNS(svgNS,'line');
     midLine.setAttribute('x1', MARGIN.left); midLine.setAttribute('x2', SVG_W - MARGIN.right);
     midLine.setAttribute('y1', MIDLINE_Y); midLine.setAttribute('y2', MIDLINE_Y);
     midLine.setAttribute('stroke', '#7a7a7a'); midLine.setAttribute('stroke-width', '3');
     svg.appendChild(midLine);
 
-    // bottom guide
     const bottomLine = document.createElementNS(svgNS,'line');
     bottomLine.setAttribute('x1', MARGIN.left); bottomLine.setAttribute('x2', SVG_W - MARGIN.right);
     bottomLine.setAttribute('y1', BOTTOM_GUIDE_Y); bottomLine.setAttribute('y2', BOTTOM_GUIDE_Y);
     bottomLine.setAttribute('stroke', '#d6d6d6'); bottomLine.setAttribute('stroke-width', '2');
     svg.appendChild(bottomLine);
 
-    // Build clipped positive/negative point arrays
-    const posPts = points.map(p => ({ x: p.x, y: p.v > 0 ? p.y : MIDLINE_Y }));
-    const negPts = points.map(p => ({ x: p.x, y: p.v < 0 ? p.y : MIDLINE_Y }));
+    // Build pos/neg point arrays (chronological order)
+    const posPts = chron.map(p => ({ x: p.x, y: p.v > 0 ? p.y : MIDLINE_Y }));
+    const negPts = chron.map(p => ({ x: p.x, y: p.v < 0 ? p.y : MIDLINE_Y }));
 
     const posD = catmullRom2bezier(posPts);
     const negD = catmullRom2bezier(negPts);
 
     if (values12.some(v => v > 0)) {
-      const closed = posD + ` L ${points[points.length-1].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} L ${points[0].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} Z`;
+      const closed = posD + ` L ${chron[chron.length-1].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} L ${chron[0].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} Z`;
       const pathPos = document.createElementNS(svgNS,'path');
       pathPos.setAttribute('d', closed);
       pathPos.setAttribute('fill', '#1fb256');
@@ -272,7 +275,7 @@
       svg.appendChild(pathPos);
     }
     if (values12.some(v => v < 0)) {
-      const closed = negD + ` L ${points[points.length-1].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} L ${points[0].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} Z`;
+      const closed = negD + ` L ${chron[chron.length-1].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} L ${chron[0].x.toFixed(2)} ${MIDLINE_Y.toFixed(2)} Z`;
       const pathNeg = document.createElementNS(svgNS,'path');
       pathNeg.setAttribute('d', closed);
       pathNeg.setAttribute('fill', '#f07d7d');
@@ -282,8 +285,8 @@
       svg.appendChild(pathNeg);
     }
 
-    // Outline curve
-    const outlineD = catmullRom2bezier(points);
+    // Outline (smooth) using chronological points
+    const outlineD = catmullRom2bezier(chron.map(p => ({ x: p.x, y: p.y })));
     const outline = document.createElementNS(svgNS,'path');
     outline.setAttribute('d', outlineD);
     outline.setAttribute('fill', 'none');
@@ -293,9 +296,7 @@
     outline.setAttribute('stroke-linecap', 'round');
     svg.appendChild(outline);
 
-    // Small ticks at top line were already added; keep also small bottom ticks optional (skip)
-
-    // Right-hand scale labels (values)
+    // Right-hand scale labels (value labels)
     const labelGroup = document.createElementNS(svgNS,'g');
     labelGroup.setAttribute('transform', `translate(${SVG_W - 18},0)`);
     const maxLabel = Math.ceil(maxScale);
@@ -303,14 +304,16 @@
       const y = valueToY(l, maxScale);
       const tEl = document.createElementNS(svgNS,'text');
       tEl.setAttribute('x', 0); tEl.setAttribute('y', y + 4);
-      tEl.setAttribute('text-anchor', 'start'); tEl.setAttribute('font-family', 'Segoe UI, Roboto, Arial');
-      tEl.setAttribute('font-size', '11'); tEl.setAttribute('fill', '#222');
+      tEl.setAttribute('text-anchor', 'start');
+      tEl.setAttribute('font-family', 'Segoe UI, Roboto, Arial');
+      tEl.setAttribute('font-size', '11');
+      tEl.setAttribute('fill', '#222');
       tEl.textContent = String(l);
       labelGroup.appendChild(tEl);
     }
     svg.appendChild(labelGroup);
 
-    // X-axis title (Gameplay)
+    // X-axis title
     const axisLabel = document.createElementNS(svgNS,'text');
     axisLabel.setAttribute('x', (SVG_W/2).toFixed(0)); axisLabel.setAttribute('y', (SVG_H - 6).toFixed(0));
     axisLabel.setAttribute('text-anchor', 'middle'); axisLabel.setAttribute('font-family', 'Segoe UI, Roboto');
@@ -318,38 +321,46 @@
     axisLabel.textContent = 'Gameplay';
     svg.appendChild(axisLabel);
 
+    // Optional: draw small markers at each bucket position (for debugging/visibility). Comment out if not desired.
+    chron.forEach(p => {
+      const c = document.createElementNS(svgNS,'circle');
+      c.setAttribute('cx', p.x.toFixed(2));
+      c.setAttribute('cy', valueToY(p.v, maxScale).toFixed(2));
+      c.setAttribute('r', '3');
+      c.setAttribute('fill', p.v >= 0 ? '#0a8f45' : '#c84b4b');
+      c.setAttribute('opacity', '0.95');
+      svg.appendChild(c);
+    });
+
     container.appendChild(svg);
 
-    console.info('[momentum] rendered full-width chart; values:', values12, 'maxScale:', maxScale);
+    console.info('[momentum] rendered chart; mapping (UI bucket -> minute):', BUCKET_MINUTES, 'values12:', values12, 'maxScale:', maxScale);
   }
 
-  // Auto-update: observe timebox changes and also listen to reset buttons to force redraw to zero
+  // Re-render on reset clicks or storage changes
   function setupAutoUpdate() {
-    const tb = getTimeBoxElement();
-
-    // If the reset button is clicked, re-render after a tiny delay (ensures DOM/localStorage cleared)
-    const resetHandler = () => {
-      setTimeout(() => {
-        // if seasonMapTimeData removed, render will use zeros
-        renderSeasonMomentumGraphic();
-      }, 120);
-    };
-    // Attach to known reset button ids (if present)
+    // attach reset handlers for known buttons
+    const resetHandler = () => setTimeout(() => renderSeasonMomentumGraphic(), 140);
     ['resetSeasonMapBtn','resetTorbildBtn','resetBtn'].forEach(id => {
       const b = document.getElementById(id);
       if (b) b.addEventListener('click', resetHandler);
     });
-    // Also attach a delegated listener in case buttons are dynamic
+    // delegated click listener (in case buttons are dynamic)
     document.addEventListener('click', (e) => {
-      const el = e.target;
-      if (!el) return;
-      if (el.id === 'resetSeasonMapBtn' || el.id === 'resetTorbildBtn' || el.id === 'resetBtn') {
-        resetHandler();
-      }
+      const id = e?.target?.id;
+      if (id === 'resetSeasonMapBtn' || id === 'resetTorbildBtn' || id === 'resetBtn') resetHandler();
     }, true);
 
+    // listen to storage events (other windows or after export)
+    window.addEventListener('storage', (e) => {
+      if (!e) return;
+      if (e.key && /seasonMapTimeData|timeData/i.test(e.key)) {
+        setTimeout(() => renderSeasonMomentumGraphic(), 100);
+      }
+    });
+
+    const tb = getTimeBoxElement();
     if (!tb) {
-      // wait until element exists
       const root = getSeasonMapRoot();
       const mo = new MutationObserver(() => {
         if (getTimeBoxElement()) {
@@ -365,7 +376,6 @@
     hideTimeBox();
     renderSeasonMomentumGraphic();
 
-    // observe changes inside the timebox for immediate updates
     const mo2 = new MutationObserver((muts) => {
       let changed = false;
       for (const m of muts) {
@@ -378,7 +388,6 @@
     });
     mo2.observe(tb, { subtree: true, characterData: true, childList: true, attributes: true });
 
-    // also re-render when buttons are clicked manually
     tb.addEventListener('click', (e) => {
       if (e.target && e.target.classList && e.target.classList.contains('time-btn')) {
         setTimeout(() => renderSeasonMomentumGraphic(), 120);
@@ -386,7 +395,7 @@
     }, true);
   }
 
-  // Expose helpers for debugging
+  // exports for debugging
   window.renderSeasonMomentumGraphic = renderSeasonMomentumGraphic;
   window._seasonMomentum_readPeriods = readPeriods;
   window._seasonMomentum_build12 = build12Values;
