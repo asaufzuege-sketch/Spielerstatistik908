@@ -1,14 +1,11 @@
 // app.js
 // Vollständige Datei: ersetzt die alte app.js 1:1
-// - Season-Import: addiert numerische Felder zu bestehenden seasonData; 'games' bleibt unverändert.
-// - Export (Game Data): exportiert Player-Rows, Total-Zeile und eine TIMER-Zeile.
-// - Export (Season): exportiert Player-Rows und eine Total/Ø-Zeile.
-// - Export-Dialog-Flows:
-//   - Game Data -> Season: "Spiel zu Season exportieren?" (OK/Abbrechen) -> danach
-//     "Spiel wurde in Season exportiert, Daten in Game Data beibehalten?" (OK = Ja, Abbrechen = Nein).
-//   - Goal Map -> Season Map: "In Season Map exportieren?" (OK/Abbrechen) -> danach
-//     "Spiel wurde in Season Map exportiert, Daten in Goal Map beibehalten?" (OK = Ja, Abbrechen = Nein).
-//   - Keine weiteren Bestätigungen danach.
+// Änderungen / Fixes:
+// - Entfernte fehlerhafte Trunkates in HTML-Templates (keine "[...]" Platzhalter mehr).
+// - renderGoalValuePage: ersetzt Dropdown-only Eingaben durch Klick/Doppelklick/Touch wie in Game Data.
+// - Saison-Tabelle: MVP-Spalten am Ende, MVP direkt nach Time, MVP Points als letzte Spalte.
+// - Import/Export, Marker- und Timer-Logik wie zuvor, mit Robustheitschecks.
+// Hinweis: Diese Datei ist dazu gedacht, die existierende app.js 1:1 zu ersetzen.
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- Elements (buttons remain in DOM per page) ---
@@ -130,15 +127,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const checked = selectedPlayers.find(sp => sp.name === p.name) ? "checked" : "";
 
         let numAreaHtml = "";
-        if (p.num || p.num === 0 || p.num === "") {
-          if (p.num !== "" && p.num !== null && p.num !== undefined && String(p.num).trim() !== "") {
-            numAreaHtml = `<div class="num" style="flex:0 0 48px;text-align:center;"><strong>${escapeHtml(p.num)}</strong></div>`;
-          } else {
-            // allow entering number for players without fixed number
-            numAreaHtml = `<div style="flex:0 0 64px;text-align:center;"><input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px[...]
-          }
+        if (p.num !== "" && p.num !== null && p.num !== undefined && String(p.num).trim() !== "") {
+          numAreaHtml = `<div class="num" style="flex:0 0 48px;text-align:center;"><strong>${escapeHtml(p.num)}</strong></div>`;
         } else {
-          numAreaHtml = `<div style="flex:0 0 64px;text-align:center;"><input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px;b[...]
+          numAreaHtml = `<div style="flex:0 0 64px;text-align:center;">
+                           <input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px;border-radius:6px;border:1px solid #444;background:var(--row-even);color:var(--text-color)">
+                         </div>`;
         }
 
         li.innerHTML = `
@@ -160,8 +154,8 @@ document.addEventListener("DOMContentLoaded", () => {
       li.innerHTML = `
         <label class="custom-line" style="display:flex;align-items:center;gap:8px;width:100%;" for="${chkId}">
           <input id="${chkId}" name="${chkId}" type="checkbox" class="custom-checkbox" ${pre ? "checked" : ""} style="flex:0 0 auto">
-          <input id="${numId}" name="${numId}" type="text" class="custom-num" inputmode="numeric" maxlength="3" placeholder="Nr." value="${pre?.num || ""}" style="width:56px;flex:0 0 auto;border-radiu[...]
-          <input id="${nameId}" name="${nameId}" type="text" class="custom-name" placeholder="Eigener Spielername" value="${pre?.name || ""}" style="flex:1;min-width:0;border-radius:6px;border:1px sol[...]
+          <input id="${numId}" name="${numId}" type="text" class="custom-num" inputmode="numeric" maxlength="3" placeholder="Nr." value="${escapeHtml(pre?.num || "")}" style="width:56px;flex:0 0 auto;border-radius:6px;border:1px solid #444;background:var(--row-even);color:var(--text-color);padding:6px">
+          <input id="${nameId}" name="${nameId}" type="text" class="custom-name" placeholder="Eigener Spielername" value="${escapeHtml(pre?.name || "")}" style="flex:1;min-width:0;border-radius:6px;border:1px solid #444;padding:6px;background:var(--row-even);color:var(--text-color)">
         </label>`;
       playerListContainer.appendChild(li);
     }
@@ -189,7 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const allLis = Array.from(playerListContainer.querySelectorAll("li"));
         const customLis = allLis.slice(players.length);
-        customLis.forEach((li, ci) => {
+        customLis.forEach((li) => {
           const chk = li.querySelector(".custom-checkbox");
           const numInput = li.querySelector(".custom-num");
           const nameInput = li.querySelector(".custom-name");
@@ -470,13 +464,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // --- Marker helpers with FIELD image sampling (unchanged) ---
+  // --- Marker helpers with FIELD image sampling ---
   const LONG_MARK_MS_INTERNAL = 600;
-  const FIELD_RECT = { left: 7, right: 93, top: 5, bottom: 95 };
   function clampPct(v) { return Math.max(0, Math.min(100, v)); }
-  function isInsideRect(pos, rect) {
-    return pos.xPct >= rect.left && pos.xPct <= rect.right && pos.yPct >= rect.top && pos.yPct <= rect.bottom;
-  }
 
   const samplerCache = new WeakMap();
   function createImageSampler(imgEl) {
@@ -751,7 +741,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   attachMarkerHandlersToBoxes(torbildBoxesSelector);
 
-  // --- Time tracking helpers (unchanged) ---
+  // --- Time tracking helpers ---
   function initTimeTrackingBox(box, storageKey = "timeData", readOnly = false) {
     if (!box) return;
     let timeDataAll = JSON.parse(localStorage.getItem(storageKey)) || {};
@@ -1223,7 +1213,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Attach export handler to exportBtn (Game Data page)
   document.getElementById("exportBtn")?.addEventListener("click", exportStatsCSV);
 
-  // --- Season table rendering (full) with rounded corners and consistent header color ---
+  // --- Season table rendering (full) with MVP columns moved to end ---
   function parseForSort(val) {
     if (val === null || val === undefined) return "";
     const v = String(val).trim();
@@ -1247,9 +1237,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!container) return;
     container.innerHTML = "";
 
-    // Modified header order:
-    // - Move "MVP" to directly after "Time"
-    // - Move "MVP Points" to be the last column
+    // Header order: MVP is right after Time, MVP Points last
     const headerCols = [
       "Nr", "Spieler", "Games",
       "Goals", "Assists", "Points", "+/-", "Ø +/-",
@@ -1330,10 +1318,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const mvpPointsRounded = Number(Number(mvpPointsNum).toFixed(1));
 
-      // Build cells according to new header order:
-      // ["Nr","Spieler","Games","Goals","Assists","Points","+/-","Ø +/-",
-      //  "Shots","Shots/Game","Goals/Game","Points/Game",
-      //  "Penalty","Goal Value","FaceOffs","FaceOffs Won","FaceOffs %","Time","MVP","MVP Points"]
       const cells = [
         d.num || "",
         d.name,
@@ -1353,8 +1337,8 @@ document.addEventListener("DOMContentLoaded", () => {
         faceOffsWon,
         `${faceOffPercent}%`,
         formatTimeMMSS(timeSeconds),
-        "", // MVP rank placeholder (will be filled later)
-        ""  // MVP Points placeholder (will be filled later)
+        "", // MVP placeholder
+        ""  // MVP Points placeholder
       ];
 
       return {
@@ -1371,7 +1355,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const scoreToRank = {};
     uniqueScores.forEach((s, idx) => { scoreToRank[s] = idx + 1; });
 
-    // place MVP rank and MVP points in the two last columns
     rows.forEach(r => {
       const displayPoints = (typeof r.mvpPointsRounded === "number" && isFinite(r.mvpPointsRounded)) ? Number(r.mvpPointsRounded.toFixed(1)) : "";
       const rank = (typeof r.mvpPointsRounded !== "undefined" && r.mvpPointsRounded !== "" && scoreToRank.hasOwnProperty(r.mvpPointsRounded)) ? scoreToRank[r.mvpPointsRounded] : "";
@@ -1416,7 +1399,7 @@ document.addEventListener("DOMContentLoaded", () => {
       th.style.padding = "8px";
     });
 
-    // compute and append total/average row (same as render logic used elsewhere)
+    // compute and append total/average row
     if (count > 0) {
       const sums = {
         games: 0, goals: 0, assists: 0, points: 0, plusMinus: 0,
@@ -1448,26 +1431,26 @@ document.addEventListener("DOMContentLoaded", () => {
       const avgFaceOffPercent = avgFaceOffs ? Math.round((avgFaceOffsWon / avgFaceOffs) * 100) : 0;
       const avgTimeSeconds = Math.round(sums.timeSeconds / count);
 
-      // Build totalCells according to new header order
       const totalCells = new Array(headerCols.length).fill("");
-      totalCells[1] = "Total Ø"; // "Spieler" column
-      totalCells[2] = Number((avgGames).toFixed(1)); // Games
-      totalCells[3] = Number((avgGoals).toFixed(1)); // Goals
-      totalCells[4] = Number((avgAssists).toFixed(1)); // Assists
-      totalCells[5] = Number((avgPoints).toFixed(1)); // Points
-      totalCells[6] = Number((avgPlusMinus).toFixed(1)); // +/-
-      totalCells[7] = Number((avgPlusMinus).toFixed(1)); // Ø +/-
-      totalCells[8] = Number((avgShots).toFixed(1)); // Shots
-      totalCells[9] = Number((avgShots / (avgGames || 1)).toFixed(1)); // Shots/Game
-      totalCells[10] = Number((avgGoals / (avgGames || 1)).toFixed(1)); // Goals/Game
-      totalCells[11] = Number((avgPoints / (avgGames || 1)).toFixed(1)); // Points/Game
-      totalCells[12] = Number((avgPenalty).toFixed(1)); // Penalty
-      totalCells[13] = ""; // Goal Value left empty
+      totalCells[1] = "Total Ø"; // "Spieler"
+      totalCells[2] = Number((avgGames).toFixed(1));
+      totalCells[3] = Number((avgGoals).toFixed(1));
+      totalCells[4] = Number((avgAssists).toFixed(1));
+      totalCells[5] = Number((avgPoints).toFixed(1));
+      totalCells[6] = Number((avgPlusMinus).toFixed(1));
+      totalCells[7] = Number((avgPlusMinus).toFixed(1));
+      totalCells[8] = Number((avgShots).toFixed(1));
+      totalCells[9] = Number((avgShots / (avgGames || 1)).toFixed(1));
+      totalCells[10] = Number((avgGoals / (avgGames || 1)).toFixed(1));
+      totalCells[11] = Number((avgPoints / (avgGames || 1)).toFixed(1));
+      totalCells[12] = Number((avgPenalty).toFixed(1));
+      totalCells[13] = ""; // Goal Value left blank
       totalCells[14] = Number((avgFaceOffs).toFixed(1));
       totalCells[15] = Number((avgFaceOffsWon).toFixed(1));
       totalCells[16] = `${avgFaceOffPercent}%`;
       totalCells[17] = formatTimeMMSS(avgTimeSeconds);
-      // MVP + MVP Points left empty in totals (or could be aggregated differently)
+      // MVP & MVP Points left empty
+
       const trTotal = document.createElement("tr");
       trTotal.className = "total-row";
       totalCells.forEach(c => {
@@ -1819,7 +1802,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- timer helpers (unchanged) ---
+  // --- timer helpers ---
   function updateTimerDisplay(){
     const m = String(Math.floor(timerSeconds / 60)).padStart(2,"0");
     const s = String(timerSeconds % 60).padStart(2,"0");
@@ -1926,7 +1909,7 @@ document.addEventListener("DOMContentLoaded", () => {
   backFromGoalValueBtn?.addEventListener("click", () => showPageRef("stats"));
   resetGoalValueBtn?.addEventListener("click", resetGoalValuePage);
 
-  // ----- GOAL VALUE Helpers (unchanged) -----
+  // ----- GOAL VALUE Helpers -----
   function getGoalValueOpponents() {
     try {
       const raw = localStorage.getItem("goalValueOpponents");
@@ -2012,7 +1995,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return arr;
   }
 
-  // --- Updated: renderGoalValuePage using click/dblclick/touch for goal cells (same interaction as Game Data) ---
+  // --- Updated: renderGoalValuePage using click/dblclick/touch for goal cells ---
   function renderGoalValuePage() {
     if (!goalValueContainer) return;
     goalValueContainer.innerHTML = "";
@@ -2179,7 +2162,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tbody.appendChild(row);
     });
 
-    // bottom row: keep the select for weights as before (user didn't request removing)
+    // bottom row: keep selects for scale (user can still edit weights)
     const bottomRow = document.createElement("tr");
     bottomRow.style.background = "rgba(0,0,0,0.05)";
     const bottomLabel = document.createElement("td");
