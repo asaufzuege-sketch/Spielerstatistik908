@@ -1,10 +1,8 @@
 // season_map_momentum.js
 // Option B (periods run from 20 down to 0 inside each period); full-width 0..60 timeline.
-// Updated: top guide-line labels 0..60 (every 5 min) are white and placed UNDER the white line.
-// - Top guide line now spans exactly minuteToX(0) .. minuteToX(60).
-// - Major ticks at 0,20,40,60 are longer. Minor ticks (every 5) are shorter.
-// - Labels are white and centered under the white line.
-// - Keeps localStorage-first reading, DOM fallback, reset clearing, smoothing, etc.
+// Update: first plotted bucket is exactly at 0, last at 60 (so the chart spans the full time).
+// Major ticks at 0 / 20 / 40 / 60 are longer and labels are larger & bold white under the white line.
+// Keeps localStorage-first reading, DOM fallback, reset clearing, smoothing, etc.
 
 (function () {
   const SVG_W = 900;
@@ -15,13 +13,11 @@
   const BOTTOM_GUIDE_Y = 196;
   const MAX_DISPLAY = 6;
 
-  // Correct per-period mapping (Option B corrected to place buckets left->right within each period)
+  // NEW: place the 12 UI buckets exactly spanning 0..60
   // UI order per period: [19-15, 14-10, 9-5, 4-0]
-  // Map them left->right within each period so that 19-15 is leftmost:
-  // P1 -> [2, 7, 12, 17]  (0 .. 20)
-  // P2 -> [22,27,32,37]   (20 .. 40)
-  // P3 -> [42,47,52,57]   (40 .. 60)
-  const BUCKET_MINUTES = [2,7,12,17, 22,27,32,37, 42,47,52,57];
+  // Map them left->right across the whole 0..60 span so first maps to 0 and last to 60
+  // 12 values -> we use these minute positions (0..60) so first peak is exactly at 0, last at 60
+  const BUCKET_MINUTES = [0,5,10,15, 20,25,30,35, 40,45,50,60];
 
   function getSeasonMapRoot() { return document.getElementById('seasonMapPage') || document.body; }
   function getTimeBoxElement() {
@@ -227,8 +223,8 @@
     svg.appendChild(topLine);
 
     // tick lengths
-    const majorTickLen = 14; // for 0,20,40,60
-    const minorTickLen = 7;  // for other 5-min ticks
+    const majorTickLen = 18; // for 0,20,40,60 (bigger)
+    const minorTickLen = 8;  // for other 5-min ticks
     const majorSet = new Set([0,20,40,60]);
 
     for (let t=0;t<=60;t+=5) {
@@ -239,23 +235,23 @@
       const tick = document.createElementNS(svgNS,'line');
       tick.setAttribute('x1', x); tick.setAttribute('x2', x);
       tick.setAttribute('y1', topY); tick.setAttribute('y2', botY);
-      tick.setAttribute('stroke', '#cccccc'); tick.setAttribute('stroke-width','1.2');
+      tick.setAttribute('stroke', '#cccccc'); tick.setAttribute('stroke-width', isMajor ? '1.6' : '1.0');
       svg.appendChild(tick);
       // numeric label placed UNDER the white line (so the number appears below the line)
       const txt = document.createElementNS(svgNS,'text');
       txt.setAttribute('x', x);
       // y = TOP_GUIDE_Y + offset -> placed under the white line; increase offset for major ticks a bit to avoid overlap
-      txt.setAttribute('y', TOP_GUIDE_Y + (isMajor ? 20 : 14));
+      txt.setAttribute('y', TOP_GUIDE_Y + (isMajor ? 22 : 14));
       txt.setAttribute('text-anchor', 'middle');
       txt.setAttribute('font-family', 'Segoe UI, Roboto, Arial');
-      txt.setAttribute('font-size', '12');
+      txt.setAttribute('font-size', isMajor ? '13' : '11');
       txt.setAttribute('fill', '#ffffff'); // white numbers
-      txt.setAttribute('font-weight', '700');
+      txt.setAttribute('font-weight', isMajor ? '800' : '700');
       txt.textContent = String(t);
       svg.appendChild(txt);
     }
 
-    // baseline and bottom guide
+    // baseline and bottom guide (span exact 0..60)
     const midLine = document.createElementNS(svgNS,'line');
     midLine.setAttribute('x1', minuteToX(0)); midLine.setAttribute('x2', minuteToX(60));
     midLine.setAttribute('y1', MIDLINE_Y); midLine.setAttribute('y2', MIDLINE_Y);
