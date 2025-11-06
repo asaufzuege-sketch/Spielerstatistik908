@@ -135,10 +135,10 @@ document.addEventListener("DOMContentLoaded", () => {
             numAreaHtml = `<div class="num" style="flex:0 0 48px;text-align:center;"><strong>${escapeHtml(p.num)}</strong></div>`;
           } else {
             // allow entering number for players without fixed number
-            numAreaHtml = `<div style="flex:0 0 64px;text-align:center;"><input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px;border-radius:6px;border:1px solid #444;background:var(--row-even);color:var(--text-color);"></div>`;
+            numAreaHtml = `<div style="flex:0 0 64px;text-align:center;"><input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px[...]
           }
         } else {
-          numAreaHtml = `<div style="flex:0 0 64px;text-align:center;"><input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px;border-radius:6px;border:1px solid #444;background:var(--row-even);color:var(--text-color);"></div>`;
+          numAreaHtml = `<div style="flex:0 0 64px;text-align:center;"><input class="num-input" type="text" inputmode="numeric" maxlength="3" placeholder="Nr." value="" style="width:56px;padding:6px;b[...]
         }
 
         li.innerHTML = `
@@ -160,8 +160,8 @@ document.addEventListener("DOMContentLoaded", () => {
       li.innerHTML = `
         <label class="custom-line" style="display:flex;align-items:center;gap:8px;width:100%;" for="${chkId}">
           <input id="${chkId}" name="${chkId}" type="checkbox" class="custom-checkbox" ${pre ? "checked" : ""} style="flex:0 0 auto">
-          <input id="${numId}" name="${numId}" type="text" class="custom-num" inputmode="numeric" maxlength="3" placeholder="Nr." value="${pre?.num || ""}" style="width:56px;flex:0 0 auto;border-radius:6px;border:1px solid #444;background:var(--row-even);color:var(--text-color);padding:6px;">
-          <input id="${nameId}" name="${nameId}" type="text" class="custom-name" placeholder="Eigener Spielername" value="${pre?.name || ""}" style="flex:1;min-width:0;border-radius:6px;border:1px solid #444;background:var(--row-even);color:var(--text-color);padding:6px;">
+          <input id="${numId}" name="${numId}" type="text" class="custom-num" inputmode="numeric" maxlength="3" placeholder="Nr." value="${pre?.num || ""}" style="width:56px;flex:0 0 auto;border-radiu[...]
+          <input id="${nameId}" name="${nameId}" type="text" class="custom-name" placeholder="Eigener Spielername" value="${pre?.name || ""}" style="flex:1;min-width:0;border-radius:6px;border:1px sol[...]
         </label>`;
       playerListContainer.appendChild(li);
     }
@@ -1247,11 +1247,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!container) return;
     container.innerHTML = "";
 
+    // Modified header order:
+    // - Move "MVP" to directly after "Time"
+    // - Move "MVP Points" to be the last column
     const headerCols = [
-      "MVP Points", "MVP", "Nr", "Spieler", "Games",
+      "Nr", "Spieler", "Games",
       "Goals", "Assists", "Points", "+/-", "Ø +/-",
       "Shots", "Shots/Game", "Goals/Game", "Points/Game",
-      "Penalty", "Goal Value", "FaceOffs", "FaceOffs Won", "FaceOffs %", "Time"
+      "Penalty", "Goal Value", "FaceOffs", "FaceOffs Won", "FaceOffs %", "Time",
+      "MVP", "MVP Points"
     ];
 
     const table = document.createElement("table");
@@ -1326,9 +1330,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const mvpPointsRounded = Number(Number(mvpPointsNum).toFixed(1));
 
+      // Build cells according to new header order:
+      // ["Nr","Spieler","Games","Goals","Assists","Points","+/-","Ø +/-",
+      //  "Shots","Shots/Game","Goals/Game","Points/Game",
+      //  "Penalty","Goal Value","FaceOffs","FaceOffs Won","FaceOffs %","Time","MVP","MVP Points"]
       const cells = [
-        mvpPointsRounded,
-        "",
         d.num || "",
         d.name,
         games,
@@ -1346,7 +1352,9 @@ document.addEventListener("DOMContentLoaded", () => {
         faceOffs,
         faceOffsWon,
         `${faceOffPercent}%`,
-        formatTimeMMSS(timeSeconds)
+        formatTimeMMSS(timeSeconds),
+        "", // MVP rank placeholder (will be filled later)
+        ""  // MVP Points placeholder (will be filled later)
       ];
 
       return {
@@ -1363,11 +1371,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const scoreToRank = {};
     uniqueScores.forEach((s, idx) => { scoreToRank[s] = idx + 1; });
 
+    // place MVP rank and MVP points in the two last columns
     rows.forEach(r => {
       const displayPoints = (typeof r.mvpPointsRounded === "number" && isFinite(r.mvpPointsRounded)) ? Number(r.mvpPointsRounded.toFixed(1)) : "";
       const rank = (typeof r.mvpPointsRounded !== "undefined" && r.mvpPointsRounded !== "" && scoreToRank.hasOwnProperty(r.mvpPointsRounded)) ? scoreToRank[r.mvpPointsRounded] : "";
-      r.cells[0] = displayPoints;
-      r.cells[1] = rank;
+      const mvpIdx = headerCols.length - 2; // second last => "MVP"
+      const mvpPointsIdx = headerCols.length - 1; // last => "MVP Points"
+      r.cells[mvpIdx] = rank;
+      r.cells[mvpPointsIdx] = displayPoints;
     });
 
     let displayRows = rows.slice();
@@ -1437,26 +1448,26 @@ document.addEventListener("DOMContentLoaded", () => {
       const avgFaceOffPercent = avgFaceOffs ? Math.round((avgFaceOffsWon / avgFaceOffs) * 100) : 0;
       const avgTimeSeconds = Math.round(sums.timeSeconds / count);
 
-      const totalCells = [
-        "", "", "", "Total Ø",
-        Number((avgGames).toFixed(1)),
-        Number((avgGoals).toFixed(1)),
-        Number((avgAssists).toFixed(1)),
-        Number((avgPoints).toFixed(1)),
-        Number((avgPlusMinus).toFixed(1)),
-        Number((avgPlusMinus).toFixed(1)),
-        Number((avgShots).toFixed(1)),
-        Number((avgShots / (avgGames || 1)).toFixed(1)),
-        Number((avgGoals / (avgGames || 1)).toFixed(1)),
-        Number((avgPoints / (avgGames || 1)).toFixed(1)),
-        Number((avgPenalty).toFixed(1)),
-        "", // Goal Value total left empty
-        Number((avgFaceOffs).toFixed(1)),
-        Number((avgFaceOffsWon).toFixed(1)),
-        `${avgFaceOffPercent}%`,
-        formatTimeMMSS(avgTimeSeconds)
-      ];
-
+      // Build totalCells according to new header order
+      const totalCells = new Array(headerCols.length).fill("");
+      totalCells[1] = "Total Ø"; // "Spieler" column
+      totalCells[2] = Number((avgGames).toFixed(1)); // Games
+      totalCells[3] = Number((avgGoals).toFixed(1)); // Goals
+      totalCells[4] = Number((avgAssists).toFixed(1)); // Assists
+      totalCells[5] = Number((avgPoints).toFixed(1)); // Points
+      totalCells[6] = Number((avgPlusMinus).toFixed(1)); // +/-
+      totalCells[7] = Number((avgPlusMinus).toFixed(1)); // Ø +/-
+      totalCells[8] = Number((avgShots).toFixed(1)); // Shots
+      totalCells[9] = Number((avgShots / (avgGames || 1)).toFixed(1)); // Shots/Game
+      totalCells[10] = Number((avgGoals / (avgGames || 1)).toFixed(1)); // Goals/Game
+      totalCells[11] = Number((avgPoints / (avgGames || 1)).toFixed(1)); // Points/Game
+      totalCells[12] = Number((avgPenalty).toFixed(1)); // Penalty
+      totalCells[13] = ""; // Goal Value left empty
+      totalCells[14] = Number((avgFaceOffs).toFixed(1));
+      totalCells[15] = Number((avgFaceOffsWon).toFixed(1));
+      totalCells[16] = `${avgFaceOffPercent}%`;
+      totalCells[17] = formatTimeMMSS(avgTimeSeconds);
+      // MVP + MVP Points left empty in totals (or could be aggregated differently)
       const trTotal = document.createElement("tr");
       trTotal.className = "total-row";
       totalCells.forEach(c => {
@@ -1473,7 +1484,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const trTotal = document.createElement("tr");
       trTotal.className = "total-row";
       const emptyCells = new Array(headerCols.length).fill("");
-      emptyCells[3] = "Total Ø";
+      emptyCells[1] = "Total Ø";
       emptyCells.forEach(c => {
         const td = document.createElement("td");
         td.textContent = c;
@@ -2001,6 +2012,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return arr;
   }
 
+  // --- Updated: renderGoalValuePage using click/dblclick/touch for goal cells (same interaction as Game Data) ---
   function renderGoalValuePage() {
     if (!goalValueContainer) return;
     goalValueContainer.innerHTML = "";
@@ -2065,6 +2077,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const tbody = document.createElement("tbody");
     const valueCellMap = {};
 
+    // For each player, render a row. For opponent columns, render clickable cells (increment on click, decrement on dblclick / double-tap)
     playerNames.forEach(name => {
       const row = document.createElement("tr");
       row.style.borderBottom = "1px solid #333";
@@ -2083,22 +2096,75 @@ document.addEventListener("DOMContentLoaded", () => {
         const td = document.createElement("td");
         td.style.padding = "6px";
         td.style.textAlign = "center";
-        const input = document.createElement("input");
-        input.type = "number";
-        input.min = "0";
-        input.step = "1";
-        input.value = String(playerVals[idx] || 0);
-        input.style.width = "60px";
-        input.addEventListener("change", () => {
-          const v = Number(input.value) || 0;
+        td.style.cursor = "pointer";
+        td.dataset.player = name;
+        td.dataset.opp = String(idx);
+        const cellVal = Number(playerVals[idx] || 0);
+        td.textContent = String(cellVal);
+
+        // interaction: click -> +1 (single click), dblclick -> -1
+        let clickTimeout = null;
+        td.addEventListener("click", () => {
+          if (clickTimeout) clearTimeout(clickTimeout);
+          clickTimeout = setTimeout(() => {
+            // single click -> increment
+            const all = getGoalValueData();
+            if (!all[name]) all[name] = opponents.map(()=>0);
+            all[name][idx] = Math.max(0, (Number(all[name][idx]||0) + 1));
+            setGoalValueData(all);
+            td.textContent = String(all[name][idx]);
+            const valCell = valueCellMap[name];
+            if (valCell) valCell.textContent = formatValueNumber(computeValueForPlayer(name));
+            clickTimeout = null;
+          }, 200);
+        });
+        td.addEventListener("dblclick", (e) => {
+          e.preventDefault();
+          if (clickTimeout) { clearTimeout(clickTimeout); clickTimeout = null; }
           const all = getGoalValueData();
           if (!all[name]) all[name] = opponents.map(()=>0);
-          all[name][idx] = v;
+          all[name][idx] = Math.max(0, (Number(all[name][idx]||0) - 1));
           setGoalValueData(all);
+          td.textContent = String(all[name][idx]);
           const valCell = valueCellMap[name];
           if (valCell) valCell.textContent = formatValueNumber(computeValueForPlayer(name));
         });
-        td.appendChild(input);
+
+        // touch: implement double-tap detection similar to time buttons
+        let lastTap = 0;
+        td.addEventListener("touchstart", (e) => {
+          const now = Date.now();
+          const diff = now - lastTap;
+          if (diff < 300) {
+            e.preventDefault();
+            if (clickTimeout) { clearTimeout(clickTimeout); clickTimeout = null; }
+            // double-tap -> decrement
+            const all = getGoalValueData();
+            if (!all[name]) all[name] = opponents.map(()=>0);
+            all[name][idx] = Math.max(0, (Number(all[name][idx]||0) - 1));
+            setGoalValueData(all);
+            td.textContent = String(all[name][idx]);
+            const valCell = valueCellMap[name];
+            if (valCell) valCell.textContent = formatValueNumber(computeValueForPlayer(name));
+            lastTap = 0;
+          } else {
+            lastTap = now;
+            setTimeout(() => {
+              if (lastTap !== 0) {
+                // single tap -> increment
+                const all = getGoalValueData();
+                if (!all[name]) all[name] = opponents.map(()=>0);
+                all[name][idx] = Math.max(0, (Number(all[name][idx]||0) + 1));
+                setGoalValueData(all);
+                td.textContent = String(all[name][idx]);
+                const valCell = valueCellMap[name];
+                if (valCell) valCell.textContent = formatValueNumber(computeValueForPlayer(name));
+                lastTap = 0;
+              }
+            }, 300);
+          }
+        }, { passive: true });
+
         row.appendChild(td);
       });
 
@@ -2113,6 +2179,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tbody.appendChild(row);
     });
 
+    // bottom row: keep the select for weights as before (user didn't request removing)
     const bottomRow = document.createElement("tr");
     bottomRow.style.background = "rgba(0,0,0,0.05)";
     const bottomLabel = document.createElement("td");
