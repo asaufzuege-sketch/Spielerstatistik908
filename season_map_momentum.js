@@ -1,8 +1,10 @@
 // season_map_momentum.js
 // Option B (periods run from 20 down to 0 inside each period); full-width 0..60 timeline.
-// Updated: top guide-line labels (0..60 every 5 minutes) are white and placed UNDER the white line.
-// Also made sure the labels are aligned to the exact minute positions (0 at leftmost, 60 at rightmost).
-// Keeps localStorage-first reading, DOM fallback, reset clearing, smoothing, etc.
+// Updated: top guide-line labels 0..60 (every 5 min) are white and placed UNDER the white line.
+// - Top guide line now spans exactly minuteToX(0) .. minuteToX(60).
+// - Major ticks at 0,20,40,60 are longer. Minor ticks (every 5) are shorter.
+// - Labels are white and centered under the white line.
+// - Keeps localStorage-first reading, DOM fallback, reset clearing, smoothing, etc.
 
 (function () {
   const SVG_W = 900;
@@ -213,28 +215,37 @@
     svg.style.display = 'block';
 
     // top white guide-line and labels 0..60 every 5 minutes (labels UNDER the white line, centered)
+    const topLineX1 = minuteToX(0);
+    const topLineX2 = minuteToX(60);
     const topLine = document.createElementNS(svgNS,'line');
-    topLine.setAttribute('x1', MARGIN.left);
-    topLine.setAttribute('x2', SVG_W - MARGIN.right);
+    topLine.setAttribute('x1', topLineX1);
+    topLine.setAttribute('x2', topLineX2);
     topLine.setAttribute('y1', TOP_GUIDE_Y);
     topLine.setAttribute('y2', TOP_GUIDE_Y);
     topLine.setAttribute('stroke', '#ffffff');
     topLine.setAttribute('stroke-width', '3');
     svg.appendChild(topLine);
 
+    // tick lengths
+    const majorTickLen = 14; // for 0,20,40,60
+    const minorTickLen = 7;  // for other 5-min ticks
+    const majorSet = new Set([0,20,40,60]);
+
     for (let t=0;t<=60;t+=5) {
       const x = minuteToX(t);
-      // small tick crossing the white line
+      const isMajor = majorSet.has(t);
+      const topY = TOP_GUIDE_Y - (isMajor ? majorTickLen : minorTickLen);
+      const botY = TOP_GUIDE_Y + (isMajor ? majorTickLen : minorTickLen);
       const tick = document.createElementNS(svgNS,'line');
       tick.setAttribute('x1', x); tick.setAttribute('x2', x);
-      tick.setAttribute('y1', TOP_GUIDE_Y - 6); tick.setAttribute('y2', TOP_GUIDE_Y + 6);
-      tick.setAttribute('stroke', '#cccccc'); tick.setAttribute('stroke-width','1');
+      tick.setAttribute('y1', topY); tick.setAttribute('y2', botY);
+      tick.setAttribute('stroke', '#cccccc'); tick.setAttribute('stroke-width','1.2');
       svg.appendChild(tick);
       // numeric label placed UNDER the white line (so the number appears below the line)
       const txt = document.createElementNS(svgNS,'text');
       txt.setAttribute('x', x);
-      // y = TOP_GUIDE_Y + offset -> placed under the white line
-      txt.setAttribute('y', TOP_GUIDE_Y + 14);
+      // y = TOP_GUIDE_Y + offset -> placed under the white line; increase offset for major ticks a bit to avoid overlap
+      txt.setAttribute('y', TOP_GUIDE_Y + (isMajor ? 20 : 14));
       txt.setAttribute('text-anchor', 'middle');
       txt.setAttribute('font-family', 'Segoe UI, Roboto, Arial');
       txt.setAttribute('font-size', '12');
@@ -246,13 +257,13 @@
 
     // baseline and bottom guide
     const midLine = document.createElementNS(svgNS,'line');
-    midLine.setAttribute('x1', MARGIN.left); midLine.setAttribute('x2', SVG_W - MARGIN.right);
+    midLine.setAttribute('x1', minuteToX(0)); midLine.setAttribute('x2', minuteToX(60));
     midLine.setAttribute('y1', MIDLINE_Y); midLine.setAttribute('y2', MIDLINE_Y);
     midLine.setAttribute('stroke', '#7a7a7a'); midLine.setAttribute('stroke-width', '3');
     svg.appendChild(midLine);
 
     const bottomLine = document.createElementNS(svgNS,'line');
-    bottomLine.setAttribute('x1', MARGIN.left); bottomLine.setAttribute('x2', SVG_W - MARGIN.right);
+    bottomLine.setAttribute('x1', minuteToX(0)); bottomLine.setAttribute('x2', minuteToX(60));
     bottomLine.setAttribute('y1', BOTTOM_GUIDE_Y); bottomLine.setAttribute('y2', BOTTOM_GUIDE_Y);
     bottomLine.setAttribute('stroke', '#d6d6d6'); bottomLine.setAttribute('stroke-width', '2');
     svg.appendChild(bottomLine);
