@@ -1,29 +1,22 @@
 // season_map_momentum.js
-// Fixes:
-// - Mapping corrected so that UI bucket order [19-15,14-10,9-5,4-0] maps to minutes LEFT->RIGHT within each period.
-//   That means clicking 19-15 in Periode 1 produces a peak ganz links (near minute 0).
-// - Reset handling improved: when a Season-Map reset is clicked we also clear seasonMapTimeData/seasonMapMarkers in localStorage
-//   before re-rendering, so no stale value remains.
-// - Keeps localStorage-preference (export writes seasonMapTimeData). If LS has values they are used; otherwise DOM is used.
-// - Top white line labeled 0..60 in 5min-steps. Removed the left "Momentum" label.
-// - Points are sorted chronologically (left→right) for the smooth area.
-// - Exposes debug helpers: window._seasonMomentum_readPeriods(), window._seasonMomentum_build12(), window.renderSeasonMomentumGraphic()
+// Option B (periods run from 20 down to 0 inside each period); full-width 0..60 timeline.
+// Updated: labels 0..60 in 5-min steps are now drawn directly on the white top guide line (centered on the line).
+// Keeps localStorage-first reading, DOM fallback, reset clearing, smoothing, etc.
 
 (function () {
   const SVG_W = 900;
   const SVG_H = 220;
   const MARGIN = { left: 32, right: 32, top: 20, bottom: 36 };
-  const TOP_GUIDE_Y = 28;    // white labeled line
+  const TOP_GUIDE_Y = 28;    // white labeled line (labels centered on this line)
   const MIDLINE_Y = 120;     // baseline (momentum = 0)
   const BOTTOM_GUIDE_Y = 196;
   const MAX_DISPLAY = 6;
 
-  // Chronological mapping within each period (Option B correction):
-  // UI order per period: [19-15, 14-10, 9-5, 4-0]
-  // Map them to minutes left->right so 19-15 is leftmost of the period:
-  // P1 -> [2, 7, 12, 17]  (0..20)
-  // P2 -> [22,27,32,37]   (20..40)
-  // P3 -> [42,47,52,57]   (40..60)
+  // Correct per-period mapping: UI order per period is [19-15,14-10,9-5,4-0]
+  // Map them left->right within each period so that 19-15 is the leftmost bucket of the period:
+  // P1 -> [2, 7, 12, 17]  (0 .. 20)
+  // P2 -> [22,27,32,37]   (20 .. 40)
+  // P3 -> [42,47,52,57]   (40 .. 60)
   const BUCKET_MINUTES = [2,7,12,17, 22,27,32,37, 42,47,52,57];
 
   function getSeasonMapRoot() { return document.getElementById('seasonMapPage') || document.body; }
@@ -61,7 +54,7 @@
             scored = [0,0,0,0]; conceded = [0,0,0,0];
           }
         } else if (val && typeof val === 'object') {
-          // object mapping numeric keys
+          // map-like: numeric keys possibly 0..7
           const flat = [];
           for (let i = 0; i < 8; i++) flat.push(Number(val[String(i)] || 0));
           scored = flat.slice(0,4);
@@ -69,7 +62,7 @@
         } else {
           scored = [0,0,0,0]; conceded = [0,0,0,0];
         }
-        // Keep UI order as read: [19-15,14-10,9-5,4-0] -> we map indexes to minutes via BUCKET_MINUTES
+        // keep UI order as read (19-15,14-10,9-5,4-0)
         periods.push({ scored: scored.slice(), conceded: conceded.slice() });
       }
       while (periods.length < 3) periods.push({ scored: [0,0,0,0], conceded: [0,0,0,0] });
@@ -117,7 +110,7 @@
     try { return periods.some(p => (p.scored.concat(p.conceded)).some(v => Number(v) !== 0)); } catch(e) { return false; }
   }
 
-  // Prefer localStorage if it contains non-zero values (export case), else DOM
+  // Prefer localStorage if it contains non-zero values (export case), otherwise DOM
   function readPeriods() {
     const ls = readFromLocalStorageFallback();
     if (ls && hasNonZero(ls)) { console.debug('[momentum] using localStorage periods'); return ls; }
@@ -217,7 +210,7 @@
     svg.setAttribute('preserveAspectRatio','xMidYMid meet');
     svg.style.display = 'block';
 
-    // top white guide-line and labels 0..60 every 5 minutes
+    // top white guide-line and labels 0..60 every 5 minutes (labels centered on the white line)
     const topLine = document.createElementNS(svgNS,'line');
     topLine.setAttribute('x1', MARGIN.left);
     topLine.setAttribute('x2', SVG_W - MARGIN.right);
@@ -229,15 +222,21 @@
 
     for (let t=0;t<=60;t+=5) {
       const x = minuteToX(t);
+      // small tick crossing the white line
       const tick = document.createElementNS(svgNS,'line');
       tick.setAttribute('x1', x); tick.setAttribute('x2', x);
       tick.setAttribute('y1', TOP_GUIDE_Y - 6); tick.setAttribute('y2', TOP_GUIDE_Y + 6);
       tick.setAttribute('stroke', '#cccccc'); tick.setAttribute('stroke-width','1');
       svg.appendChild(tick);
+      // numeric label centered vertically on the white line
       const txt = document.createElementNS(svgNS,'text');
-      txt.setAttribute('x', x); txt.setAttribute('y', TOP_GUIDE_Y - 10);
-      txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-family', 'Segoe UI, Roboto, Arial');
-      txt.setAttribute('font-size', '12'); txt.setAttribute('fill', '#111');
+      txt.setAttribute('x', x);
+      // center the label vertically on the white line (slightly offset to avoid clipping)
+      txt.setAttribute('y', TOP_GUIDE_Y + 4);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('font-family', 'Segoe UI, Roboto, Arial');
+      txt.setAttribute('font-size', '12');
+      txt.setAttribute('fill', '#111');
       txt.textContent = String(t);
       svg.appendChild(txt);
     }
@@ -294,7 +293,7 @@
     outline.setAttribute('stroke-linecap', 'round');
     svg.appendChild(outline);
 
-    // Optional small markers for each point (kept for visibility)
+    // Small markers for visibility (can be removed)
     chron.forEach(p => {
       const c = document.createElementNS(svgNS,'circle');
       c.setAttribute('cx', p.x.toFixed(2));
